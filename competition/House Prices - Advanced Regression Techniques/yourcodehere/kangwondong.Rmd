@@ -18,12 +18,6 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 
-# Preparations (준비작업) {.tabset .tabset-fade}
-
-## Libraries
-
-We mainly exploits the functions from the tidyvers and tidymodels packages. `magrittr` has my favorite operators!
-
 ```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
 library(tidymodels)
 library(tidyverse)
@@ -40,10 +34,11 @@ file_path <- "../input/house-prices-advanced-regression-techniques/"
 files <- list.files(file_path)
 files
 ```
+##..은 상위 폴로로 이동한다는 의미
 
 ```{r, message=FALSE}
-train <- read_csv(file.path(file_path, "train.csv"))
-test <- read_csv(file.path(file_path, "test.csv"))
+train <- read.csv(file.path(file_path, "train.csv"))
+test <- read.csv(file.path(file_path, "test.csv"))
 ```
 
 
@@ -127,7 +122,7 @@ First, I would like to clean the variable names with `janitor` package so that w
 ```{r}
 all_data <- bind_rows(train, test) %>% 
   janitor::clean_names()
-names(all_data)[1:10]
+names(all_data)[1:12]
 ```
 
 ## Make recipe
@@ -147,8 +142,9 @@ housing_recipe <- all_data %>%
 
 print(housing_recipe)
 ```
+##modimpute가 na를 채우는 방법-->가장 빈번한 예로 NA를 채워라
 
-## `juice` the all_data2 and split
+## `juice` the all_data2 and split(전처리한거 빼내기)
 
 ```{r}
 all_data2 <- juice(housing_recipe)
@@ -170,12 +166,66 @@ train2 %>%
 ```
 
 # Set linear regression model and fitting (모델 설정 및 학습)
+#tidyverse{step_dummy==data.model}
+
 ```{r}
+
 f<-function(i){
- ggplot(data=train2,aes(x=train[,i],y=d[,81]))+geom_boxplot()
+ ggplot(data=train,aes(x=train[[i]],y=train[[81]]))+geom_boxplot()
 }
-g<-function(i){ggplot(data=train,aes(x=train[,i],y=d[,81]))+geom_point()
+g<-function(i){ggplot(data=train,aes(x=train[[i]],y=train[[81]]))+geom_point()
 }
+
+```
+
+
+```{r}
+g(37)
+```
+##this variable does not have a lot impact on the Saleprice
+```{r}
+g(46)
+```
+##this variable does not have a lot impact on the Saleprice
+```{r}
+```{r}
+train[[49]]<-as.factor(train[[49]])
+f(49)
+```
+##this variable does not have a lot impact on the Saleprice
+
+
+
+```{r}
+g(70)  #eliminate
+```
+##Elimination
+```{r}
+g(72)
+```
+##Elimination
+```{r}
+g(76) 
+```
+##Elimination
+
+
+```{r}
+f(78) ##eliminate
+train[[78]]<-as.factor(train[[78]])
+f(78) ##eliminate
+
+```
+##elimination
+```{r}
+names(train[,37])
+names(train[,46])
+names(train[,49])
+names(train[,70])
+names(train[,72])
+names(train[,76])
+names(train[,78])
+
 ```
 
 ```{r}
@@ -185,7 +235,7 @@ lm_model <-
 
 lm_form_fit <- 
     lm_model %>% 
-    fit(sale_price ~ .-, data = train2)
+    fit(log(sale_price) ~.-bsmt_fin_sf2-low_qual_fin_sf-bsmt_half_bath-pool_area-misc_val-yr_sold-x3ssn_porch, data = train2)
 
 options(max.print = 10)
 print(lm_form_fit)
@@ -194,7 +244,7 @@ print(lm_form_fit)
 # Prediction and submit (예측 및 평가)
 
 ```{r warning=FALSE}
-result <- predict(lm_form_fit, test2)
+result <- exp(predict(lm_form_fit, test2))
 result %>% head()
 ```
 

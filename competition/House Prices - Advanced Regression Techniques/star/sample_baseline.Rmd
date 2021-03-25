@@ -1,0 +1,224 @@
+---
+title: "Regression baseline with Tidymodels"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center")
+```
+
+# Preparations (준비작업) {.tabset .tabset-fade}
+
+## Libraries
+
+We mainly exploits the functions from the tidyvers and tidymodels packages. `magrittr` has my favorite operators!
+
+```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
+library(tidymodels)
+library(tidyverse)
+library(magrittr)
+library(skimr)
+library(knitr)
+theme_set(theme_bw())
+```
+
+## Data load
+list.files(): 지금 있는 파일이 뭐니?
+```{r}
+file_path <- "../input/house-prices-advanced-regression-techniques/"
+files <- list.files(file_path)
+files
+```
+csv파일 불러오기
+```{r, message=FALSE}
+train <- read_csv(file.path(file_path, "train.csv"))
+test <- read_csv(file.path(file_path, "test.csv"))
+```
+
+# Data overview (데이터 기본정보) {.tabset .tabset-fade}
+
+## Basic info.
+
+Here is the basic information about `train` and `test`. We have approximately the same sample size for the train and test set. The number of columns in the train is 81 and the one in the test is 80.
+
+```{r}
+dim(train)
+dim(test)
+```
+
+We can see train doesn't have the target variable `SalePrice`.
+
+```{r}
+"SalePrice" %in% names(test)
+```
+
+
+## Detailed info. `train`
+
+```{r}
+skim(train)
+```
+
+## Detailed info. `test`
+
+```{r}
+skim(test)
+```
+
+# EDA with visualization (탐색적 데이터 분석) {.tabset .tabset-fade}
+
+## Distribution of `sale_price`
+
+If we check out the distribution of the house price, it is little bit skewed to the right.
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = SalePrice)) +
+  geom_histogram()
+```
+Since we want to build a linear regression assume that the noise follows the normal distribution, let us take a log to `SalePrice` variable.
+한쪽으로 치우쳐져 있는 값에 log를 취한다.(y가 정규분포를 따른다는 가정 하에서 회귀분석이 잘 된ㄷㅣ.)
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = log(SalePrice))) +
+  geom_histogram()
+```
+
+## `NA`s
+
+There is a nice package for checking out `NA`s. Let's see how many variables we have which contains `NA`s.
+in.na인 값들을 다 더하면-> 그 col안에 missing observation이 있는 값들을 선택해서 gg_miss_var 함수로 표현
+```{r message=FALSE, warning=FALSE, class.source = 'fold-hide'}
+library(naniar)
+train %>% 
+  # select_if(~sum(is.na(.)) > 0) %>% # alternative way
+  select(where(~sum(is.na(.)) > 0)) %>% 
+  gg_miss_var()
+```
+
+We can do more analysis about `NA`s with `upset()` function, which shows that most of the observations with `NA`s in the data set have `NA`s at the `PoolQC`, `MiscFeature`, `Alley`, `Fence` at the same time.
+동시에 없는 정보들을 볼 수 있다. (NA의 연관성으로 전처리를 할 때 고려할 수 있다.)
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  select(where(~sum(is.na(.)) > 0)) %>% 
+  gg_miss_upset()
+```
+
+From the above, we can have some insights that if a house doesn't have Pool, it is likely that it doesn't have Alley, Fence, and Fireplace too.
+
+# Preprecessing with `recipe` (전처리 레시피 만들기)
+
+First, I would like to clean the variable names with `janitor` package so that we have consistent varible names.
+
+## `all_data` combine and name cleaning with `janitor`
+bind_rows하는 이유: 두 자료에 동일한 전처리를 하기 위해서 
+```{r}
+all_data <- bind_rows(train, test) %>% 
+  janitor::clean_names()
+names(all_data)[1:10]
+all_data %>% dim()
+```
+
+## Make recipe
+
+Note that we will use mode imputation for nominal variables for the baseline, and the mean imputation for the numerical variables. However, this should be changed to build a more sensitive model because we have checked that the `NA` in the nominal variables indicates that cases where the house doesn't have the corresponding attributes.
+
+```{r}
+housing_recipe <- all_data %>% 
+  recipe(sale_price ~ .) %>%
+  step_rm(id,pool_qc, misc_feature,alley,fence, fireplace_qu) %>% 
+  step_log(sale_price) %>% 
+  step_modeimpute(all_nominal()) %>% 
+  step_dummy(all_nominal()) %>% 
+  step_meanimpute(all_predictors()) %>%
+  step_normalize(all_predictors()) %>% 
+  prep(training = all_data)
+
+print(housing_recipe)
+```
+
+all_data로 모델링을 할거다
+recipe: target variable은 saleprice이고, 나머지 변수들은 예측변수로 쓸거다
+step_rm: id는 제거를 해라(별 필요가 없을 거 같아서)
+step_log: saleprice에 log를 씌워라
+step_modeimpute: na를 채우는 방법(impute)은 가장 빈번하게 있는 것으로(mode) 채워라. norminal 애들만(숫자들이 아닌거)
+step_dummy: (tidymodels 패키지에서는)카테고리 데이터에 더미코딩을 알아서 해줘(base: data.metrirx)
+step_meanimputae: numerical애들은 그 na 제외한 col의 평균을 구해서 채워 넣어라
+step_normalize: 예측값을 정규화시킴: col들의 평균, 분산을 구해서 표준화를 시킨다.
+prep: 위의 전처리 과정을 거친 all_data를 training data로 준비시켜라
+
+*정규화를 시키는 이유: 값이 이동할 때 unit을 고려: 1달러=1000원으로 같은 효과를 주기 위해서
+* tree계열로 할 때는 정규화 필요가 없는데, 어떤 기준값보다 큰지 작은지만 판단하기 때문이다!(추후 수업)
+
+
+## `juice` the all_data2 and split
+전처리한 data를 다시 빼내서 all_data2로 가져와라잇
+더미코딩을 해줬기 때문에 col의 수가 늘어난다.
+
+```{r}
+all_data2 <- juice(housing_recipe)
+all_data2 %>% dim()
+```
+
+We are done for preprocessing. Let's split the data set.
+
+전처리가 끝났으면 다시 train이랑 test로 분리시킴. 왜냐하면 train으로 학습하고 test로 예측할것이기 때문에
+```{r}
+train_index <- seq_len(nrow(train))
+train2 <- all_data2[train_index,]
+test2 <- all_data2[-train_index,]
+```
+
+
+```{r}
+train2 %>% 
+  head() %>% 
+  kable()
+```
+
+# Set linear regression model and fitting (모델 설정 및 학습)
+linear regression을 할건데
+그 엔진은 base에 있는 lm을 사용할 것이다.
+
+전처리를 시킨 train2를 이용해서 fit을 시킬거다
+(fit하면 변수마다의 베타값이 나온다.)
+```{r}
+lm_model <- 
+    linear_reg() %>% 
+    set_engine("lm")
+
+lm_form_fit <- 
+    lm_model %>% 
+    fit(sale_price ~ ., data = train2)
+
+options(max.print = 10)
+print(lm_form_fit)
+```
+
+# Prediction and submit (예측 및 평가)
+
+```{r warning=FALSE}
+result <- predict(lm_form_fit, test2)
+result %>% head()
+```
+predict는 lm_form_fit에 들어있는 학습한 내용을 가지고, saleprice가 없는 새로운 data인 test2를 집어넣어서 predict를 해라.
+
+```{r}
+submission <- read_csv(file.path(file_path, "sample_submission.csv"))
+submission$SalePrice <- exp(result$.pred)
+write.csv(submission, row.names = FALSE,
+          "baseline_regression.csv")
+```
+얻은 결과는 submission 파일로 가서 saleprice column에 exp취해서 넣어라
+

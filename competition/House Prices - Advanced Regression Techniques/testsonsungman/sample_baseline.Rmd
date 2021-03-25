@@ -37,7 +37,7 @@ theme_set(theme_bw())
 
 ```{r}
 file_path <- "../input/house-prices-advanced-regression-techniques/"
-files <- ?list.files(file_path)
+files <- list.files(file_path)
 files
 ```
 
@@ -103,8 +103,8 @@ There is a nice package for checking out `NA`s. Let's see how many variables we 
 ```{r message=FALSE, warning=FALSE, class.source = 'fold-hide'}
 library(naniar)
 train %>% 
-  # select_if(~sum(is.na(.)) > 0) %>% # alternative way
-  select(where(~sum(is.na(.)) > 0)) %>% 
+  select_if(~sum(is.na(.)) > 0) %>% # alternative way
+  #select(where(~sum(is.na(.)) > 0)) %>% 
   gg_miss_var()
 ```
 
@@ -112,7 +112,8 @@ We can do more analysis about `NA`s with `upset()` function, which shows that mo
 
 ```{r message=FALSE, class.source = 'fold-hide'}
 train %>% 
-  select(where(~sum(is.na(.)) > 0)) %>% 
+  select_if(~sum(is.na(.)) > 0) %>%
+  #select(where(~sum(is.na(.)) > 0)) %>% 
   gg_miss_upset()
 ```
 
@@ -155,149 +156,6 @@ all_data2 <- juice(housing_recipe)
 ```
 
 
-Consider multicollinearity.
-
-```{r, results='hide'}
-  library(fmsb)
-
-  vif_func <- function(in_frame,thresh=10, trace=F,...){
-
-  
-
-  require(fmsb)
-
-  
-
-  if(class(in_frame) != 'data.frame') in_frame<-data.frame(in_frame)
-
-  
-
-  #get initial vif value for all comparisons of variables
-
-  vif_init <- vector('list', length = ncol(in_frame))
-
-  names(vif_init) <- names(in_frame)
-
-  var_names <- names(in_frame)
-
-  
-
-  for(val in var_names){
-
-    regressors <- var_names[-which(var_names == val)]
-
-    form <- paste(regressors, collapse = '+')
-
-    form_in <- formula(paste(val,' ~ .'))
-
-    vif_init[[val]] <- VIF(lm(form_in,data=in_frame,...))
-
-  }
-
-  vif_max<-max(unlist(vif_init))
-
-  
-
-  if(vif_max < thresh){
-
-    if(trace==T){ #print output of each iteration
-
-      prmatrix(vif_init,collab=c('var','vif'),rowlab=rep('', times = nrow(vif_init) ),quote=F)
-
-      cat('\n')
-
-      cat(paste('All variables have VIF < ', thresh,', max VIF ',round(vif_max,2), sep=''),'\n\n')
-
-    }
-
-    return(names(in_frame))
-
-  }
-
-  else{
-
-    
-
-    in_dat<-in_frame
-
-    
-
-    #backwards selection of explanatory variables, stops when all VIF values are below 'thresh'
-
-    while(vif_max >= thresh){
-
-      
-
-      vif_vals <- vector('list', length = ncol(in_dat))
-
-      names(vif_vals) <- names(in_dat)
-
-      var_names <- names(in_dat)
-
-      
-
-      for(val in var_names){
-
-        regressors <- var_names[-which(var_names == val)]
-
-        form <- paste(regressors, collapse = '+')
-
-        form_in <- formula(paste(val,' ~ .'))
-
-        vif_add <- VIF(lm(form_in,data=in_dat,...))
-
-        vif_vals[[val]] <- vif_add
-
-      }
-
-      
-
-      max_row <- which.max(vif_vals)
-
-      #max_row <- which( as.vector(vif_vals) == max(as.vector(vif_vals)) )
-
-      
-
-      vif_max<-vif_vals[max_row]
-
-      
-
-      if(vif_max<thresh) break
-
-      
-
-      if(trace==T){ #print output of each iteration
-
-        vif_vals <- do.call('rbind', vif_vals)
-
-        vif_vals
-
-        prmatrix(vif_vals,collab='vif',rowlab=row.names(vif_vals),quote=F)
-
-        cat('\n')
-
-        cat('removed: ', names(vif_max),unlist(vif_max),'\n\n')
-
-        flush.console()
-
-      }
-
-      in_dat<-in_dat[,!names(in_dat) %in% names(vif_max)]
-
-    }
-
-    return(names(in_dat))
-
-  }
-
-}
-
-
-  all_data2 <- vif_func(all_data2, thresh=10, trace=T)
-
-```
-
-
 We are done for preprocessing. Let's split the data set.
 
 ```{r}
@@ -313,6 +171,7 @@ train2 %>%
   kable()
 ```
 
+
 # Set linear regression model and fitting (모델 설정 및 학습)
 
 ```{r}
@@ -324,20 +183,45 @@ lm_form_fit <-
     lm_model %>% 
     fit(sale_price ~ ., data = train2)
 
+    lm_model1<-lm(sale_price ~ ., data = train2)
+    null_reg <-lm(sale_price ~ 1, data = train2)
+
 options(max.print = 10)
 print(lm_form_fit)
 ```
 
+
+## Feature selection using ster_wise
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+  library(MASS) 
+
+   step_model <- null_reg %>% 
+  stats::step(direction="forward", scope=list(lower=null_reg, upper=lm_model1))
+
+```
+
+
+Check for collinearity
+
+
+```{r}
+ # library(car)
+  #    vif(step.model)
+```
+
+
 # Prediction and submit (예측 및 평가)
 
 ```{r warning=FALSE}
-result <- predict(lm_form_fit, test2)
+result <- as.tibble(predict(step_model, test2))
+
 result %>% head()
 ```
 
 ```{r}
 submission <- read_csv(file.path(file_path, "sample_submission.csv"))
-submission$SalePrice <- exp(result$.pred)
+submission$SalePrice <- exp(result$value)
 write.csv(submission, row.names = FALSE,
           "baseline_regression.csv")
 ```

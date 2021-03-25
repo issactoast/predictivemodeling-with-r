@@ -1,0 +1,280 @@
+---
+title: "WooramSeong"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center")
+```
+
+
+#이삭 쌤의 응용통계학 수업 관련 과제 페이지 입니다
+
+
+# 준비작업 {.tabset .tabset-fade .tabset-pills}
+
+## 필요 라이브러리
+
+
+```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
+library(tidymodels)
+library(tidyverse)
+library(magrittr)
+library(skimr)
+library(knitr)
+library(car)
+theme_set(theme_bw())
+```
+
+## 데이터 가져오기
+```{r}
+file_path <- "../input/house-prices-advanced-regression-techniques/"
+files <- list.files(file_path)
+files
+```
+
+```{r, message=FALSE}
+train <- read_csv(file.path(file_path, "train.csv"))
+test <- read_csv(file.path(file_path, "test.csv"))
+```
+
+# Data overview (데이터 기본정보) {.tabset .tabset-fade}
+
+## 기본 정보
+
+Train - 총 1460개의 행, 81개의 열로 이루어져있고,  
+Test - 목표 변수인 SalePrice를 제외한 80개의 열로 이루어져있다. 행은 1459개이다.
+
+##대략 주어진 데이터를 가지고 50:50의 비율로 회귀분석과 검증을 실시한다.##
+
+Train의 정보를 통해 회귀분석을 실행하고, 해당 회귀분석 식이
+Test의 정보에 얼마나 잘 들어맞는지 예측해보자.
+
+We can see test doesn't have the target variable `SalePrice`.
+
+```{r}
+"SalePrice" %in% names(test)
+```
+
+
+## 세부정보(`train`)
+
+```{r}
+skim(train)
+```
+
+## 세부정보(`test`)
+
+```{r}
+skim(test)
+```
+
+# EDA with visualization (탐색적 데이터 분석) {.tabset .tabset-fade}
+
+## Distribution of `sale_price`
+
+집 판매가격 분포를 살펴보자. 오른쪽으로 꼬리가 긴 형태를 가지고 있다.
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = SalePrice)) +
+  geom_histogram()
+```
+
+선형 회귀 모형은 다음 가정을 요한다.
+
+1. 잔차는 정규분포를 따라야 한다. (정규성)
+
+이외에도 선형성, 독립변수간의 독립성, 등분산성
+
+정규성을 만족시키기 위해 목표 변수인 SalePrice를 정규분포의 형태로 바꿔주자.
+
+
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = ((SalePrice))^(1/6))) +
+  geom_histogram()
+```
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = log(SalePrice))) +
+  geom_histogram()
+```
+
+1/6 제곱을 한 값과 Log를 취한 값 두 경우에 대하여 LM을 실행해보자.
+
+## `NA` 처리하기
+
+Prediction, stepwise regression 등 함수의 실행을 방해하는 NA처리를 해보자.
+
+```{r message=FALSE, warning=FALSE, class.source = 'fold-hide'}
+library(naniar)
+train %>% 
+  # select_if(~sum(is.na(.)) > 0) %>% # alternative way
+  select(where(~sum(is.na(.)) > 0)) %>% 
+  gg_miss_var()
+```
+
+We can do more analysis about `NA`s with `upset()` function, which shows that most of the observations with `NA`s in the data set have `NA`s at the `PoolQC`, `MiscFeature`, `Alley`, `Fence` at the same time.
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  select(where(~sum(is.na(.)) > 0)) %>% 
+  gg_miss_upset()
+```
+
+From the above, we can have some insights that if a house doesn't have Pool, it is likely that it doesn't have Alley, Fence, and Fireplace too.
+
+# Preprecessing with `recipe` (전처리 레시피 만들기)
+
+First, I would like to clean the variable names with `janitor` package so that we have consistent varible names.
+
+## `all_data` combine and name cleaning with `janitor`
+
+```{r}
+all_data <- bind_rows(train, test) %>% 
+  janitor::clean_names()
+names(all_data)[1:81]
+```
+Unique한 제목을 위하여 대문자를 소문자로 변경시키고, 대문자가 2개 이상인 경우 두번 째 대문자 앞에_를 삽입한다. 띄어쓰기 여백도 _로 대체된다.
+
+## Make recipe
+
+Note that we will use mode imputation for nominal variables for the baseline, and the mean imputation for the numerical variables. However, this should be changed to build a more sensitive model because we have checked that the `NA` in the nominal variables indicates that cases where the house doesn't have the corresponding attributes.
+
+```{r}
+housing_recipe <- all_data %>% 
+  recipe(sale_price ~ .) %>%
+  step_rm(id) %>% 
+  step_log(sale_price) %>% 
+  step_modeimpute(all_nominal()) %>% 
+  step_dummy(all_nominal()) %>% 
+  step_meanimpute(all_predictors()) %>%
+  step_normalize(all_predictors()) %>% 
+  prep(training = all_data)
+
+print(housing_recipe)
+```
+
+## `juice` the all_data2 and split
+
+```{r}
+all_data2 <- juice(housing_recipe)
+```
+
+We are done for preprocessing. Let's split the data set.
+
+```{r}
+train_index <- seq_len(nrow(train))
+train2 <- all_data2[train_index,]
+test2 <- all_data2[-train_index,]
+```
+
+
+```{r}
+train2 %>% 
+  head() %>% 
+  kable()
+```
+
+# Set linear regression model and fitting (모델 설정 및 학습){.tabset .tabset-fade}
+
+## Try1. Forward-Stepwise
+
+모든 독립변수에 대하여 StepWise Regression 을 실행하였다.
+
+```{r content1, include=TRUE, message=FALSE,echo=FALSE}
+
+Minlm1 <- lm(sale_price ~ overall_qual,data = train2)
+Maxlm1 <- lm(sale_price ~ . , data = train2)
+
+
+find("step")
+```
+오류1) 라이브러리 Recipe 와 Stats에서 충돌이 발생했었다. 확실하게 지정을 해두자
+stats::step
+
+```{r content2, include=FALSE, message=FALSE,echo=FALSE}
+Train.Forward <- stats::step(Minlm1,scope=list(lower=Minlm1,upper=Maxlm1),direction = "forward")
+```
+
+Step 단계가 너무 많아서 include=False를 하였다. 코드는 다음과 같다.
+Train.Forward <- stats::step(Minlm1,scope=list(lower=Minlm1,upper=Maxlm1),
+direction = "forward")
+
+##다중공산성을 일으키는 변수들 제거 
+Score가 오히려 올라가서 생략...
+이중으로 VIF가 반영되는건가?
+Stepwise에서 1번 VIF에서 1번 
+
+```{r content3, include=FALSE, message=FALSE,echo=FALSE}
+plot(Train.Forward)
+
+##이상치 제거
+
+Train.Forward <- lm(sale_price ~ overall_qual + gr_liv_area + year_built + overall_cond + 
+                       garage_cars + total_bsmt_sf + ms_zoning_RM + bsmt_full_bath + 
+                       fireplaces + pool_qc_Gd + condition2_PosN + condition1_Norm + 
+                       sale_type_New + sale_condition_Normal + ms_sub_class + neighborhood_Crawfor + 
+                       bsmt_exposure_Gd + neighborhood_NridgHt + central_air_Y + 
+                       neighborhood_StoneBr + foundation_PConc + bsmt_fin_type1_Unf + 
+                       lot_area + neighborhood_Somerst + bldg_type_Twnhs + ms_zoning_RL + 
+                       functional_Typ + wood_deck_sf + screen_porch + exterior1st_BrkFace + 
+                       lot_config_CulDSac + year_remod_add + neighborhood_Edwards + 
+                       lot_shape_IR3 + functional_Maj2 + ms_zoning_FV + ms_zoning_RH + 
+                       heating_GasW + exterior2nd_Stucco + exterior1st_BrkComm + 
+                       functional_Sev + garage_qual_Gd + sale_type_ConLD + heating_Grav + 
+                       heating_qc_TA + neighborhood_NoRidge + neighborhood_MeadowV + 
+                       exterior1st_HdBoard + bsmt_exposure_No + garage_qual_Fa + 
+                       tot_rms_abv_grd + pool_area + pool_qc_Fa + kitchen_abv_gr + 
+                       roof_matl_WdShngl + exterior1st_Wd.Sdng + garage_cond_Po + 
+                       exter_cond_TA + full_bath + neighborhood_BrkSide + half_bath + 
+                       neighborhood_ClearCr + house_style_X2Story + bldg_type_X2fmCon + 
+                       condition1_PosN + heating_qc_Gd + exterior2nd_Wd.Shng + foundation_Stone + 
+                       land_slope_Sev + bsmt_fin_type2_BLQ + condition1_RRAn + house_style_X2.5Fin + 
+                       paved_drive_Y + exterior2nd_CmentBd + roof_style_Gable + 
+                       enclosed_porch + neighborhood_Veenker + fence_GdWo + foundation_Slab + 
+                       exterior2nd_Wd.Sdng + condition2_PosA + roof_style_Hip + 
+                       roof_matl_CompShg + roof_matl_Tar.Grv + roof_matl_WdShake + 
+                       roof_matl_Roll + roof_matl_Membran + roof_matl_Metal + bsmt_fin_sf1 + 
+                       garage_area + lot_frontage + functional_Mod + kitchen_qual_Gd + 
+                       kitchen_qual_TA + kitchen_qual_Fa + neighborhood_Mitchel + 
+                       foundation_Wood + condition1_RRAe + exterior2nd_BrkFace + 
+                       sale_type_CWD + electrical_SBrkr + house_style_X1Story + 
+                       misc_feature_Shed + street_Pave + lot_shape_IR2 + garage_cond_Fa + 
+                       condition1_RRNn + condition1_Feedr + exterior1st_CemntBd
+                     , data=train2[-c(524,633,826,1001), ])
+
+```
+
+## Try2. Forward-Stepwise glm 다음에~
+
+
+
+
+
+# Prediction and submit (예측 및 평가){.tabset .tabset-fade}
+
+## Try1. Forward-Stepwise lm
+
+```{r}
+
+result <- predict(Train.Forward, test2)
+submission <- read_csv(file.path(file_path, "sample_submission.csv"))
+submission$SalePrice <- exp(result)
+write.csv(submission, row.names = FALSE,
+          "Wooram_submission.csv")
+```
+
+
+
+
+## Try2. Forward-Stepwise glm
+
+
+다음에~
+

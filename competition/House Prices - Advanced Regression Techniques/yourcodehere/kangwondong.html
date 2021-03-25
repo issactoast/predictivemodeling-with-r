@@ -4480,29 +4480,29 @@ pre code {
 <span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>lm_form_fit <span class="ot">&lt;-</span> </span>
 <span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>    lm_model <span class="sc">%&gt;%</span> </span>
-<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">fit</span>(sale_price <span class="sc">~</span>.<span class="sc">-</span>bsmt_fin_sf2<span class="sc">-</span>low_qual_fin_sf<span class="sc">-</span>bsmt_half_bath<span class="sc">-</span>pool_area<span class="sc">-</span>misc_val<span class="sc">-</span>yr_sold<span class="sc">-</span>x3ssn_porch, <span class="at">data =</span> train2)</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">fit</span>(<span class="fu">log</span>(sale_price) <span class="sc">~</span>.<span class="sc">-</span>bsmt_fin_sf2<span class="sc">-</span>low_qual_fin_sf<span class="sc">-</span>bsmt_half_bath<span class="sc">-</span>pool_area<span class="sc">-</span>misc_val<span class="sc">-</span>yr_sold<span class="sc">-</span>x3ssn_porch, <span class="at">data =</span> train2)</span>
 <span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">max.print =</span> <span class="dv">10</span>)</span>
 <span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(lm_form_fit)</span></code></pre></div>
 <pre><code>## parsnip model object
 ## 
-## Fit time:  97ms 
+## Fit time:  113ms 
 ## 
 ## Call:
-## stats::lm(formula = sale_price ~ . - bsmt_fin_sf2 - low_qual_fin_sf - 
+## stats::lm(formula = log(sale_price) ~ . - bsmt_fin_sf2 - low_qual_fin_sf - 
 ##     bsmt_half_bath - pool_area - misc_val - yr_sold - x3ssn_porch, 
 ##     data = data)
 ## 
 ## Coefficients:
 ##    (Intercept)    ms_sub_class    lot_frontage        lot_area    overall_qual  
-##      1.202e+01      -1.701e-02       7.626e-03       2.276e-02       5.752e-02  
+##      2.486e+00      -1.465e-03       6.469e-04       1.809e-03       4.845e-03  
 ##   overall_cond      year_built  year_remod_add    mas_vnr_area    bsmt_fin_sf1  
-##      3.984e-02       5.586e-02       1.718e-02       1.201e-03       4.940e-03  
+##      3.373e-03       4.673e-03       1.457e-03       1.480e-05       2.626e-04  
 ##  [ reached getOption(&quot;max.print&quot;) -- omitted 229 entries ]</code></pre>
 </div>
 <div id="prediction-and-submit-예측-및-평가" class="section level1" number="5">
 <h1 number="5"><span class="header-section-number">5</span> Prediction and submit (예측 및 평가)</h1>
-<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">predict</span>(lm_form_fit, test2)</span>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">predict</span>(lm_form_fit, test2))</span>
 <span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>result <span class="sc">%&gt;%</span> <span class="fu">head</span>()</span></code></pre></div>
 <pre><code>## # A tibble: 6 x 1
 ##   .pred
@@ -4523,6 +4523,7 @@ pre code {
 <div class="sourceCode" id="cb70"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>submission<span class="sc">$</span>SalePrice <span class="ot">&lt;-</span> <span class="fu">exp</span>(result<span class="sc">$</span>.pred)</span>
 <span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(submission, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
 <span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a>          <span class="st">&quot;baseline_regression.csv&quot;</span>)</span></code></pre></div>
+<p>git config –global user.email “<a href="mailto:you@example.com" class="email">you@example.com</a>” git config –global user.name “Your Name”</p>
 </div>
 
 

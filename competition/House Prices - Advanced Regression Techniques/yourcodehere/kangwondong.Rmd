@@ -256,4 +256,5 @@ write.csv(submission, row.names = FALSE,
 ```
 
 
-
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"

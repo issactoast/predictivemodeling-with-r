@@ -36,6 +36,7 @@ library(tidyverse)
 library(magrittr)
 library(skimr)
 library(knitr)
+library(visdat)
 theme_set(theme_bw())
 ```
 
@@ -116,6 +117,21 @@ train %>%
 
 We can do more analysis about `NA`s with `upset()` function, which shows that most of the observations with `NA`s in the data set have `NA`s at the `PoolQC`, `MiscFeature`, `Alley`, `Fence` at the same time.
 
+
+
+```{r message=FALSE, warning=FALSE, class.source = 'fold-hide'}
+p <- DataExplorer::plot_missing(train, missing_only = T)
+```
+
+
+
+```{r}
+cols_to_remove <- p$data %>% filter(Band %in% c("Remove", "Bad")) %>% pull(feature)
+```
+
+
+
+
 ```{r message=FALSE, class.source = 'fold-hide'}
 train %>% 
   select(where(~sum(is.na(.)) > 0)) %>% 
@@ -143,12 +159,13 @@ Note that we will use mode imputation for nominal variables for the baseline, an
 ```{r}
 housing_recipe <- all_data %>% 
   recipe(sale_price ~ .) %>%
-  step_rm(id) %>% 
+  step_rm(id, utilities) %>%
+  step_rm(one_of(cols_to_remove)) %>%
   step_log(sale_price) %>% 
-  step_modeimpute(all_nominal()) %>% 
-  step_dummy(all_nominal()) %>% 
-  step_meanimpute(all_predictors()) %>%
-  step_normalize(all_predictors()) %>% 
+  step_modeimpute(all_nominal(),-all_outcomes()) %>% 
+  step_dummy(all_nominal(),-all_outcomes()) %>% 
+  step_knnimpute(all_predictors()) %>%
+  step_normalize(all_predictors(),-all_outcomes()) %>% 
   prep(training = all_data)
 
 print(housing_recipe)

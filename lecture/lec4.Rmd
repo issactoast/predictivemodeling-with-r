@@ -6,6 +6,7 @@ author:
 date: '`r Sys.Date()`'
 output:
   xaringan::moon_reader:
+    self_contained: true
     lib_dir: libs
     css: xaringan-themer.css
     nature:
@@ -317,7 +318,7 @@ abline(result, col = "blue")
 # 3th order polynomial
 
 .pull-left[
-$f(x) = \beta_0 + \beta_1 x + \beta_2 x^2 + \beta x^3$
+$f(x) = \beta_0 + \beta_1 x + \beta_2 x^2 + \beta_3 x^3$
 
 ]
 .pull-right[

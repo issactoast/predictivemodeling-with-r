@@ -149,12 +149,13 @@ Note that we will use mode imputation for nominal variables for the baseline, an
 ```{r}
 housing_recipe <- all_data %>% 
   recipe(sale_price ~ .) %>%
-  step_rm(id) %>% 
+  step_rm(id,roof_matl,ms_zoning) %>% 
   step_log(sale_price) %>% 
   step_modeimpute(all_nominal()) %>% 
   step_dummy(all_nominal()) %>% 
   step_meanimpute(all_predictors()) %>%
   step_normalize(all_predictors()) %>% 
+  step_nzv(all_predictors()) %>% 
   prep(training = all_data)
 
 print(housing_recipe)
@@ -216,39 +217,18 @@ plot(Train.Forward)
 
 ##이상치 제거
 
-Train.Forward <- lm(sale_price ~ overall_qual + gr_liv_area + year_built + overall_cond + 
-                       garage_cars + total_bsmt_sf + ms_zoning_RM + bsmt_full_bath + 
-                       fireplaces + pool_qc_Gd + condition2_PosN + condition1_Norm + 
-                       sale_type_New + sale_condition_Normal + ms_sub_class + neighborhood_Crawfor + 
-                       bsmt_exposure_Gd + neighborhood_NridgHt + central_air_Y + 
-                       neighborhood_StoneBr + foundation_PConc + bsmt_fin_type1_Unf + 
-                       lot_area + neighborhood_Somerst + bldg_type_Twnhs + ms_zoning_RL + 
-                       functional_Typ + wood_deck_sf + screen_porch + exterior1st_BrkFace + 
-                       lot_config_CulDSac + year_remod_add + neighborhood_Edwards + 
-                       lot_shape_IR3 + functional_Maj2 + ms_zoning_FV + ms_zoning_RH + 
-                       heating_GasW + exterior2nd_Stucco + exterior1st_BrkComm + 
-                       functional_Sev + garage_qual_Gd + sale_type_ConLD + heating_Grav + 
-                       heating_qc_TA + neighborhood_NoRidge + neighborhood_MeadowV + 
-                       exterior1st_HdBoard + bsmt_exposure_No + garage_qual_Fa + 
-                       tot_rms_abv_grd + pool_area + pool_qc_Fa + kitchen_abv_gr + 
-                       roof_matl_WdShngl + exterior1st_Wd.Sdng + garage_cond_Po + 
-                       exter_cond_TA + full_bath + neighborhood_BrkSide + half_bath + 
-                       neighborhood_ClearCr + house_style_X2Story + bldg_type_X2fmCon + 
-                       condition1_PosN + heating_qc_Gd + exterior2nd_Wd.Shng + foundation_Stone + 
-                       land_slope_Sev + bsmt_fin_type2_BLQ + condition1_RRAn + house_style_X2.5Fin + 
-                       paved_drive_Y + exterior2nd_CmentBd + roof_style_Gable + 
-                       enclosed_porch + neighborhood_Veenker + fence_GdWo + foundation_Slab + 
-                       exterior2nd_Wd.Sdng + condition2_PosA + roof_style_Hip + 
-                       roof_matl_CompShg + roof_matl_Tar.Grv + roof_matl_WdShake + 
-                       roof_matl_Roll + roof_matl_Membran + roof_matl_Metal + bsmt_fin_sf1 + 
-                       garage_area + lot_frontage + functional_Mod + kitchen_qual_Gd + 
-                       kitchen_qual_TA + kitchen_qual_Fa + neighborhood_Mitchel + 
-                       foundation_Wood + condition1_RRAe + exterior2nd_BrkFace + 
-                       sale_type_CWD + electrical_SBrkr + house_style_X1Story + 
-                       misc_feature_Shed + street_Pave + lot_shape_IR2 + garage_cond_Fa + 
-                       condition1_RRNn + condition1_Feedr + exterior1st_CemntBd
-                     , data=train2[-c(524,633,826,1001), ])
-
+Train.forward <- lm(formula = sale_price ~ overall_qual + gr_liv_area + year_built + 
+                       overall_cond + garage_cars + total_bsmt_sf + fireplaces + 
+                       bsmt_full_bath + ms_sub_class + condition1_Norm + neighborhood_NridgHt + 
+                       lot_area + bsmt_fin_type1_Unf + foundation_PConc + neighborhood_Somerst + 
+                       bsmt_exposure_Gd + central_air_Y + lot_config_CulDSac + neighborhood_Edwards + 
+                       neighborhood_OldTown + sale_type_New + sale_condition_Normal + 
+                       full_bath + functional_Typ + wood_deck_sf + heating_qc_TA + 
+                       house_style_X2Story + half_bath + tot_rms_abv_grd + exter_qual_Gd + 
+                       paved_drive_Y + year_remod_add + exter_cond_TA + garage_yr_blt + 
+                       garage_type_Attchd + exterior1st_MetalSd + bsmt_qual_TA + 
+                       bsmt_qual_Gd + foundation_CBlock + heating_qc_Gd + bsmt_exposure_No + 
+                       garage_finish_Unf + roof_style_Gable , data=train2[-c(496,524,1299), ])
 ```
 
 ## Try2. Forward-Stepwise glm 다음에~
@@ -265,7 +245,7 @@ Train.Forward <- lm(sale_price ~ overall_qual + gr_liv_area + year_built + overa
 
 result <- predict(Train.Forward, test2)
 submission <- read_csv(file.path(file_path, "sample_submission.csv"))
-submission$SalePrice <- exp(result)
+submission$SalePrice <- exp(result$.pred)
 write.csv(submission, row.names = FALSE,
           "Wooram_submission.csv")
 ```

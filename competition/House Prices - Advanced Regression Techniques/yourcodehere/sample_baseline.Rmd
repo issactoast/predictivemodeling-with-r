@@ -199,7 +199,7 @@ result %>% head()
 
 ```{r}
 submission <- read_csv(file.path(file_path, "sample_submission.csv"))
-submission$SalePrice <- exp(result)
+submission$SalePrice <- exp(result$.pred)
 write.csv(submission, row.names = FALSE,
           "baseline_regression.csv")
 ```

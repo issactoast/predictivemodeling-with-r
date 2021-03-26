@@ -358,10 +358,55 @@ points(x2, y3, type = "l", col = "blue")
 ---
 # Avoid Over fitting: Regularization
 
-Consider the new loss function;
+Priviously we looked at linear models. Let's extend our candidates!
 
-$$Loss=L\left(\beta;X\right)+\lambda R\left(\beta\right)$$
-where the function $R$ represents the regularization term.
+$$RSS(f) = \left(\mathbf{y}-f(X)\right)^T\left(\mathbf{y}-f(X)\right)$$
+To avoid the overfitting, we will consider the following penalized RSS, PRSS;
+
+$$PRSS(f;\lambda) = RSS\left(f\right)+\lambda J\left(f\right)$$
+where the functional $J(f)$ represents a regularization term.
+
+---
+# Bias-Variance trade off
+
+We observe a quantitative responds $Y$ and $p$ different perdictors, $X_1, ..., X_p$. 
+
+$$Y = f(X) + \epsilon$$
+where $X = (X_1, ..., X_p)$. $\epsilon$ is a random error term, which is independent of $X$ and has mean zero.
+
+We can predict $Y$ using $$\hat{Y}=\hat{f}(X),$$ where $\hat{f}$ represents our estimate for $f$, and $\hat{Y}$ represents the resulting prediction for $Y$.
+
+---
+# Accuracy of $\hat{Y}$
+
+The accuracy of $\hat{Y}$ as a predicton for $Y$ depends on two quantities;
+
+* Reducible error
+
+* Irreducible error
+
+\begin{align*}
+\mathbb{E}\left(Y-\hat{Y}\right)^{2} & =\mathbb{E}\left[\left(f\left(X\right)+\epsilon-\hat{f}\left(X\right)\right)^{2}\right]\\
+ & =\left[f\left(X\right)-\hat{f}\left(X\right)\right]^{2}+Var\left(\epsilon\right)
+\end{align*}
+
+
+---
+# Expected test error
+
+Expected test error can be decomposed as the following three terms;
+
+* $Variance$, $Noise$, $Bais^2$
+
+$$
+\begin{align*}
+ & \mathbb{E}_{D,X,y}\left[\left(\hat{f}_{D}\left(X\right)-y\right)^{2}\right]\\
+= & \mathbb{E}_{X,D}\left[\left(\hat{f}_{D}\left(X\right)-\bar{f}\left(X\right)\right)^{2}\right]+\\
+= & \mathbb{E}_{X,y}\left[\left(\hat{f}\left(X\right)-y\right)^{2}\right]+\\
+= & \mathbb{E}_{X}\left[\left(\bar{f}\left(X\right)-\hat{f}\left(X\right)\right)^{2}\right]
+\end{align*}
+$$
+
 
 ---
 # Ridge regression
@@ -391,6 +436,33 @@ The loss function can be parameterized with the two parameters; $\lambda$, $\alp
 
 $$\underset{\beta}{min}\left(y-X\beta\right)^{T}\left(y-X\beta\right)+\frac{\lambda}{2}\left(\alpha\left\Vert \beta\right\Vert _{1}+\left(1-\alpha\right)\left\Vert \beta\right\Vert _{2}^{2}\right)$$
 
+---
+# Problem
+
+So we have the two models like `Lasso` and `Ridge` regression, and more extended model called `Elastic net`. These models have the parameters.
+
+How do we determine these parameters?
+
+* We can't use test dataset. (That's cheating and in Kaggle we don't know the dependent variables)
+
+
+---
+# Validation set
+
+Make our own validation set using `train data set`.
+
+* Assumption: train and test data set have the same data distribution.  
+
+```{r validation, echo=FALSE, fig.cap="", fig.align='center', out.width = '65%'}
+knitr::include_graphics("./validationset.png")
+```
+
+---
+# Hyperparameter Tuning
+
+If our model perform well on the validation set, it will work well in the test data!
+
+* Tunning the hyperparameter using validation set.
 
 ---
 class: middle, center, inverse

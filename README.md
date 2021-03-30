@@ -7,3 +7,6 @@
 
 -   Lecture 3: [tidyr and
     purrr](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec3.html)
+
+-   Lecture 4: [Linear
+    regression](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec4.html)

@@ -36,6 +36,7 @@ library(tidyverse)
 library(magrittr)
 library(skimr)
 library(knitr)
+library(olsrr)
 theme_set(theme_bw())
 ```
 
@@ -140,15 +141,16 @@ names(all_data)[1:10]
 
 Note that we will use mode imputation for nominal variables for the baseline, and the mean imputation for the numerical variables. However, this should be changed to build a more sensitive model because we have checked that the `NA` in the nominal variables indicates that cases where the house doesn't have the corresponding attributes.
 
+**ols_step_backward_aic를 적용하고 싶었지만 dummy가 포함된 데이터 타입에는 적용하는 법을 몰라서
+  imputation만 적용한 데이터를 얻겠다.**
+
 ```{r}
 housing_recipe <- all_data %>% 
   recipe(sale_price ~ .) %>%
   step_rm(id) %>% 
-  step_log(sale_price) %>%
+  step_log(sale_price) %>% 
   step_modeimpute(all_nominal()) %>% 
-  step_dummy(all_nominal()) %>% 
-  step_meanimpute(all_predictors()) %>%
-  step_normalize(all_predictors()) %>% 
+  step_meanimpute(all_numeric()) %>%
   prep(training = all_data)
 
 print(housing_recipe)
@@ -169,40 +171,34 @@ test2 <- all_data2[-train_index,]
 ```
 
 
-```{r}
-train2 %>% 
-  head() %>% 
-  kable()
+
+
+# Set linear regression model and exercise ols_step_backward_aic to select a model
+
+```{r, warning = FALSE}
+fit = lm(sale_price ~ ., train2)
+k = ols_step_forward_aic(fit)
+
 ```
 
-# Set linear regression model and fitting (모델 설정 및 학습)
+제거된 변수들 확인
 
 ```{r}
-lm_model <- 
-    linear_reg() %>% 
-    set_engine("lm")
-
-lm_form_fit <- 
-    lm_model %>% 
-    fit(sale_price ~ ., data = train2)
-
-options(max.print = 10)
-print(lm_form_fit)
+print(k$predictors)
+summary(k$model)
 ```
 
 # Prediction and submit (예측 및 평가)
 
-```{r warning=FALSE}
-result <- predict(lm_form_fit, test2)
-result %>% head()
-```
 
 ```{r}
 submission <- read_csv(file.path(file_path, "sample_submission.csv"))
-submission$SalePrice <- exp(result$.pred)
+submission$SalePrice <- exp(predict(k$model,test2))
 write.csv(submission, row.names = FALSE,
-          "baseline_regression.csv")
+          "Second_Submission_윤상진.csv")
 ```
+
+
 
 
 

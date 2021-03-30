@@ -237,7 +237,13 @@ impute_var <- function(var, all_data, var_name){
   var_impute <- predict(lm_fit, var_test2)
   var_impute$.pred
 }
-result_cpi <- impute_var(cpi, all_data, "cpi")
+memory.limit(size = 50000)
+result_cpi <- impute_var(cpi, all_data, "cpi") # 메모리 한계 오류
+#memory.size(max = TRUE)  #OS에서 얻은 최대 메모리 크기 = OS로부터 R이 사용 가능한 메모리
+#memory.size(max = FALSE)   # 현재 사용중인 메모리 크기
+#memory.limit(size = NA)    # 컴퓨터의 최대 메모리 한계치 
+ # 컴퓨터의 최대 메모리 한계치 약 49GB로 높이기
+
 result_ump <- impute_var(unemployment, all_data, "unemployment")
 all_data$cpi[is.na(all_data$cpi)] <- result_cpi
 all_data$unemployment[is.na(all_data$unemployment)] <- result_ump
@@ -251,14 +257,14 @@ all_data %>%
 
 
 ```{r}
-# all_data %>% head()
-# info_cpi <- all_data %>% 
-#   group_by(store, dept) %>% 
-#   summarise(mean_cpi = mean(cpi, na.rm = TRUE),
-#             mean_unemp = mean(unemployment, na.rm = TRUE))
-# info_cpi
-# all_data %>% 
-#   filter(is.na(cpi) | is.na(unemployment))
+  all_data %>% head()
+  info_cpi <- all_data %>% 
+   group_by(store, dept) %>% 
+   summarise(mean_cpi = mean(cpi, na.rm = TRUE),
+             mean_unemp = mean(unemployment, na.rm = TRUE))
+ info_cpi
+ all_data %>% 
+   filter(is.na(cpi) | is.na(unemployment))
 ```
 
 
@@ -373,7 +379,6 @@ workflow <- workflow() %>%
 ## $\lambda$ 와 $\alpha$ 튜닝하기
 
 ```{r}
-doParallel::registerDoParallel()
 
 tune_result <- workflow %>% 
   tune_grid(validation_split,

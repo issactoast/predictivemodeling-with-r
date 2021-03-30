@@ -17,9 +17,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center")
 ```
 
-Hi, everyone! This is my first `Rmarkdown` kernel! Finally, I figured out how to upload the Rmarkdown to Kaggle directly! XD
-
-(안녕하세요! 처음으로 인사드립니다. 드디어, Rmarkdown으로 커널에 직접 올리는 방법을 터득했습니다! 앞으로 계속해서 tidymodels 내용을 업데이트 해나가 보도록 하겠습니다.)
+Let's apply Lasso model to the data.
 
 ![Photo by <a href="https://unsplash.com/@sxy_selia?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Sangga Rima Roman Selia</a> on <a href="/s/photos/house-price?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
   ](https://images.unsplash.com/photo-1559230928-34c7c281d7c7?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1263&q=80)
@@ -181,7 +179,7 @@ Set `mixture` is equal to zero refering the Ridge regression in `glmnet` since t
 
 ```{r message=FALSE, warning=FALSE}
 lasso_model <- 
-    linear_reg(penalty = 0.01, mixture = 0) %>%
+    linear_reg(penalty = 0.01, mixture = 1) %>% # lasso: 1, ridge: 0
     set_engine("glmnet")
 
 lasso_fit <- 

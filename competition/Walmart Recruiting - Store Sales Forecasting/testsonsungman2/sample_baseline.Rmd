@@ -352,6 +352,9 @@ train_index <- seq_len(nrow(train))
 train2 <- all_data2[train_index,]
 test2 <- all_data2[-train_index,]
 
+```
+
+```{r}
 # 튜닝을 위한 validation 데이터 설정
 set.seed(2021)
 validation_split <- vfold_cv(train2, v = 5,

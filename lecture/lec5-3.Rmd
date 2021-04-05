@@ -1,0 +1,355 @@
+---
+title: "Lecture 5 - Linear models with tidymodels"
+subtitle: "Where are missing values? 🧐"
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 5
+    fig_height: 4
+    theme: cosmo
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center")
+```
+
+
+# Preparations {.tabset .tabset-fade}
+
+## Libraries
+
+```{r load_lib, message=FALSE, warning=FALSE, results='hide'}
+library(tidymodels)
+library(tidyverse)
+library(magrittr)
+library(skimr)
+library(knitr)
+theme_set(theme_bw())
+```
+
+## Data load
+
+```{r}
+file_path <- "../competition/House Prices - Advanced Regression Techniques/input/house-prices-advanced-regression-techniques/"
+files <- list.files(file_path)
+files
+```
+
+```{r, message=FALSE}
+train <- read_csv(file.path(file_path, "train.csv")) %>% 
+  janitor::clean_names()
+test <- read_csv(file.path(file_path, "test.csv")) %>% 
+  janitor::clean_names()
+```
+
+
+# Data overview {.tabset .tabset-fade}
+
+## Basic info.
+
+```{r}
+dim(train)
+dim(test)
+```
+
+## Distribution of sale_price
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = sale_price)) +
+  geom_histogram()
+```
+
+log() will save us.
+
+```{r message=FALSE, class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = log(sale_price))) +
+  geom_histogram()
+```
+
+# Outliers {.tabset .tabset-fade}
+
+## gr_liv_area variable
+
+* Any thoughts about right 4 points?
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = gr_liv_area, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Before removing outliers")
+```
+
+```{r}
+# outliers 
+train %>%
+  filter(gr_liv_area > 4500) %>%
+  DT::datatable(width = "100%",  
+                options = list(scrollX = TRUE))
+
+# outliers remove
+train %<>% filter(!(gr_liv_area > 4500))
+```
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = gr_liv_area, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
+  labs(title = "After removing outliers")
+```
+
+## total_bsmt_sf variable
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = total_bsmt_sf, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Before removing outliers")
+```
+
+```{r}
+# outliers 
+train %>%
+  filter(total_bsmt_sf > 3000 &
+                   log(sale_price) < 13) %>%
+  DT::datatable(width = "100%",  
+                options = list(scrollX = TRUE))
+
+# outliers remove
+train %<>% filter(!(total_bsmt_sf > 3000 &
+                   log(sale_price) < 13))
+```
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = total_bsmt_sf, 
+             y = log(sale_price))) +
+  geom_point() +
+  labs(title = "After removing outliers")
+```
+
+## garage_area variable
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = garage_area, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Before removing outliers")
+```
+
+* Outliers
+
+```{r}
+# outliers 
+train %>% 
+  filter(garage_area > 1230) %>%
+  DT::datatable(width = "100%",  
+                options = list(scrollX = TRUE))
+
+# outliers remove
+train %<>% filter(garage_area <= 1230)
+```
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = garage_area, 
+             y = log(sale_price))) +
+  geom_point() +
+  labs(title = "After removing outliers")
+```
+
+# Preprecessing with `recipe`
+
+## `all_data` combine and name cleaning with `janitor`
+
+```{r}
+all_data <- bind_rows(train, test)
+names(all_data)[1:10]
+```
+
+## Missing values {.tabset .tabset-fade}
+
+### General info.
+
+```{r}
+na_info <- all_data %>% 
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(), 
+               names_to = "variable",
+               values_to = "na_count") %>% 
+  arrange(desc(na_count))
+na_info %>% DT::datatable(width = "100%")
+```
+
+```{r}
+na_info %>% 
+  filter(na_count > 4) %>% .[[1]] -> nacols
+nacols
+nominal_col <- all_data %>% 
+  select_if(is.character) %>% 
+  names()
+col_w_unknown <- nacols[nacols %in% nominal_col]
+col_w_unknown
+```
+
+
+## Make recipe
+
+```{r}
+housing_recipe <- all_data %>% 
+  recipe(sale_price ~ .) %>%
+  step_rm(id) %>% 
+  step_log(sale_price) %>%
+  step_unknown(all_of(col_w_unknown)) %>% 
+  step_modeimpute(all_nominal()) %>% 
+  step_dummy(all_nominal()) %>% 
+  step_meanimpute(all_predictors()) %>%
+  step_normalize(all_predictors()) %>% 
+  prep(training = all_data)
+
+print(housing_recipe)
+```
+
+## `juice` the all_data2 and split
+
+```{r}
+all_data2 <- juice(housing_recipe)
+```
+
+We are done for preprocessing. Let's split the data set.
+
+```{r}
+train_index <- seq_len(nrow(train))
+train2 <- all_data2[train_index,]
+test2 <- all_data2[-train_index,]
+```
+
+# Split the train into validation and train
+
+```{r}
+set.seed(2021)
+
+# validation_split <- validation_split(train2, prop = 0.7)
+validation_split <- vfold_cv(train2, v = 10, strata = sale_price)
+
+# actual split id stored in the following
+# validation_split$splits[[1]]$in_id
+# the whole point is that it's there and trust tidymodels :)
+# head(validation_split$splits[[1]]$in_id)
+```
+
+# Set the tuning spec
+
+```{r}
+tune_spec <- linear_reg(penalty = tune(),
+                        mixture = tune()) %>%
+  set_engine("glmnet")
+
+param_grid <- grid_regular(penalty(), 
+                            mixture(),
+                            levels = list(penalty = 100,
+                                          mixture = 10))
+```
+
+# Set workflow()
+
+```{r}
+workflow <- workflow() %>%
+  add_model(tune_spec) %>% 
+  add_formula(sale_price ~ .)
+```
+
+
+# Tuning $\lambda$ and $\alpha$
+
+Elestic net uses the loss function as follows;
+
+$$\underset{\beta}{min}\left(y-X\beta\right)^{T}\left(y-X\beta\right)+\frac{\lambda}{2}\left(\alpha\left\Vert \beta\right\Vert _{1}+\left(1-\alpha\right)\left\Vert \beta\right\Vert _{2}^{2}\right)$$
+
+This can be thought of as the mixture of the Lasso and Ridge regression loss function. $\lambda$ is related to penalty, $\alpha$ is related to the proportion of Lasso penalty in the loss function.
+
+```{r}
+library(tictoc)
+doParallel::registerDoParallel()
+
+tic()
+tune_result <- workflow %>% 
+  tune_grid(validation_split,
+            grid = param_grid,
+            metrics = metric_set(rmse))
+toc()
+```
+
+```{r}
+tune_result %>% 
+  collect_metrics()
+```
+
+# Visualization of the tunning result
+
+```{r}
+tune_best <- tune_result %>% select_best(metric = "rmse")
+tune_best$penalty
+tune_best$mixture
+```
+
+
+```{r message=FALSE}
+tune_result %>%
+  collect_metrics() %>%
+  filter(mixture == tune_best$mixture) %>% 
+  ggplot(aes(penalty, mean, color = .metric)) +
+  geom_line(size = 1.5) +
+  scale_x_log10() +
+  theme(legend.position = "none") +
+  labs(title = "RMSE")
+```
+
+```{r}
+tune_result %>% show_best()
+```
+
+# Set Elastic net regression model and fitting
+
+`mixture` parameter determines the proportion of Lasso regression in the Elastic net.
+
+```{r message=FALSE, warning=FALSE}
+elastic_model <- 
+    linear_reg(penalty = tune_best$penalty,
+               mixture = tune_best$mixture) %>%
+    set_engine("glmnet")
+
+elastic_fit <- 
+    elastic_model %>% 
+    fit(sale_price ~ ., data = train2)
+
+options(max.print = 10)
+elastic_fit %>% 
+    tidy() %>% 
+    filter(estimate > 0.001)
+```
+
+# Prediction and submit
+
+```{r warning=FALSE}
+result <- predict(elastic_fit, test2)
+result$.pred <- exp(result$.pred)
+result %>% head()
+```
+
+```{r}
+submission <- read_csv(file.path(file_path, "sample_submission.csv"))
+submission$SalePrice <- result$.pred
+write.csv(submission, row.names = FALSE,
+          "lecture5-3.csv")
+```

@@ -133,6 +133,8 @@ tune_spec <- linear_reg(penalty = tune(),
                         mixture = tune()) %>% #ridge
   set_engine("glmnet")
 
+grid_regular(penalty(), levels = 100)
+
 param_grid <- grid_regular(penalty(),
                            mixture(),
                            levels = list(penalty = 100,

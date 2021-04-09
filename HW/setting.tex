@@ -1,0 +1,15 @@
+\usepackage{combofont}
+\setupcombofont{multiscript-regular}
+{
+  {file:lmsans10-regular.otf:\combodefaultfeat} at #1pt,
+      {file:DejaVuSans.ttf} at #1pt,
+      {file:NotoSansCJK-Regular.ttc(0)} at #1pt
+}
+{
+   {} ,
+   fallback,
+   fallback
+}
+\DeclareFontFamily{TU}{multiscript}{}
+\DeclareFontShape {TU}{multiscript}{m}{n} {<->combo*multiscript-regular}{}
+\fontfamily{multiscript}\selectfont

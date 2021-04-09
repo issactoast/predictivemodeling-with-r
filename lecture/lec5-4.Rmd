@@ -119,14 +119,12 @@ train %>%
 ```{r}
 # outliers 
 train %>%
-  filter(total_bsmt_sf > 3000 &
-                   log(sale_price) < 13) %>%
+  filter(total_bsmt_sf > 3000) %>%
   DT::datatable(width = "100%",  
                 options = list(scrollX = TRUE))
 
 # outliers remove
-train %<>% filter(!(total_bsmt_sf > 3000 &
-                   log(sale_price) < 13))
+train %<>% filter(!(total_bsmt_sf > 3000))
 ```
 
 ```{r class.source = 'fold-hide'}
@@ -165,6 +163,37 @@ train %>%
   ggplot(aes(x = garage_area, 
              y = log(sale_price))) +
   geom_point() +
+  labs(title = "After removing outliers")
+```
+
+## 1st_flr_sf variable
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = x1st_flr_sf, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
+  labs(title = "Before removing outliers")
+```
+
+* Outliers
+
+```{r}
+# outliers 
+train %>% 
+  filter(x1st_flr_sf > 2500) %>%
+  DT::datatable(width = "100%",  
+                options = list(scrollX = TRUE))
+
+# outliers remove
+train %<>% filter(x1st_flr_sf <= 2500)
+```
+
+```{r class.source = 'fold-hide'}
+train %>% 
+  ggplot(aes(x = x1st_flr_sf, 
+             y = log(sale_price))) +
+  geom_point(alpha = 0.6) +
   labs(title = "After removing outliers")
 ```
 
@@ -276,10 +305,9 @@ all_data %<>%
          total_area_w_pool = total_area + pool_area,
          extra_area = lot_area - total_area_w_pool,
          overall_plus = overall_qual + overall_cond,
+         overall_square = overall_qual^2 + overall_cond^2,
          overall_minus = overall_qual - overall_cond)
 ```
-
-
 
 
 # Preprecessing with `recipe`

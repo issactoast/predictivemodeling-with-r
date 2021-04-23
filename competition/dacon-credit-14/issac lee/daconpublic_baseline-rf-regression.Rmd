@@ -38,7 +38,10 @@ files
 각 변수의 이름을 `janitor` 패키지로 말끔하게 바꿔준다.
 
 ```{r}
-train <- read_csv(file.path(file_path, "train.csv")) %T>% 
+train <- read_csv(file.path(file_path, "train.csv"),
+                  col_types = cols(
+                    credit = col_factor(levels = c("0.0", "1.0", "2.0"))
+                  )) %T>% 
   suppressMessages() %>% 
   janitor::clean_names()
 test <- read_csv(file.path(file_path, "test.csv")) %T>%
@@ -112,15 +115,6 @@ train %>%
 
 `tidymodels`에서는 전처리를 할 때 `recipe` 라는 패키지를 사용한다. 이 패키지에는 전처리를 하는 방법을 음식 레피시 처럼 적어놓는다고 생각하면 쉽다.
 
-## all_data 묶기
-
-앞으로 전처리를 할 때 좀 더 편리하게 하기 위해서 `all_data`로 묶어내도록 하자.
-
-```{r}
-all_data <- bind_rows(train, test)
-all_data %>% dim()
-```
-
 ## 전처리 사항들
 
 * 결과값인 credit 변수와 character 타입의 변수들을 factor 변수로 바꿔주자.
@@ -129,9 +123,8 @@ all_data %>% dim()
 ## `recipe`를 통한 전처리 입력
 
 ```{r}
-credit_recipe <- all_data %>% 
-  recipe(credit ~ .) %>% 
-  step_mutate(credit = as.factor(credit)) %>% 
+credit_recipe <- train %>% 
+  recipe(credit ~ .) %>%
   # age and employment period in yrs
   step_mutate(yrs_birth = -ceiling(days_birth/365),
               yrs_employed = -ceiling(days_employed/356)) %>% 
@@ -139,7 +132,7 @@ credit_recipe <- all_data %>%
   step_unknown(occyp_type) %>% 
   step_integer(all_nominal(), -all_outcomes()) %>% 
   step_center(all_predictors(), -all_outcomes()) %>% 
-  prep(training = all_data)
+  prep(training = train)
 
 print(credit_recipe)
 ```
@@ -149,14 +142,16 @@ print(credit_recipe)
 `juice()` 함수를 통해서 recipe에 입력된 전처리를 짜낸 데이터를 얻어온다.
 
 ```{r}
-all_data2 <- juice(credit_recipe)
-head(all_data2)
+train2 <- juice(credit_recipe)
+test2 <- bake(credit_recipe, new_data = test)
+head(train2)
+head(test2)
 ```
 
 다음과 같이 결측치 없이 잘 코딩된 데이터를 얻었다는 것을 확인 할 수 있다.
 
 ```{r}
-all_data2 %>%
+train2 %>%
 map_df(~sum(is.na(.))) %>%
   pivot_longer(cols = everything(),
        names_to = "variable",
@@ -165,12 +160,6 @@ map_df(~sum(is.na(.))) %>%
 ```
 
 전처리가 끝났으므로, train과 test셋을 나눈다.
-
-```{r}
-train_index <- seq_len(nrow(train))
-train2 <- all_data2[train_index,]
-test2 <- all_data2[-train_index,]
-```
 
 # 튜닝 준비하기
 
@@ -228,7 +217,7 @@ toc()
 ```
 
 ```{r eval=TRUE}
-tune_result$.notes
+tune_result$.notes[[1]]$.notes
 tune_result %>% 
   collect_metrics()
 ```

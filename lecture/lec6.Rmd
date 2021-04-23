@@ -562,9 +562,16 @@ Image steals from [wiki](https://en.wikipedia.org/wiki/Bootstrap_aggregating)
 Reduce the bias and variance of the prediction.
 
 1. Generally Ensemble methods work well when the predictors are as independent from one another.
-  * Bootstrapping increase the independentness by using replacement sampling
+  * Bootstrapping increase the independence of the models by using replacement sampling
   
 2. Can be done in parallel -> Gain a lot of popularity.
+
+---
+# Stacking
+
+* Stacked generalization (1992)  
+
+![](https://miro.medium.com/max/703/0*GXMZ7SIXHyVzGCE_.)
 
 ---
 class: middle, center, inverse

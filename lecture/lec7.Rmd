@@ -1,0 +1,174 @@
+---
+title: "Lecture 7 - Intro. to Boosted trees"
+subtitle: "Boosting and Additive Trees"
+author: 
+  - "Issac Lee"
+date: '`r Sys.Date()`'
+output:
+  xaringan::moon_reader:
+    self_contained: true
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(tidyverse)
+library(reticulate)
+library(xaringanthemer)
+library(magrittr)
+style_duo_accent(
+  text_font_size = "1.3rem",
+  footnote_font_size = "0.6em",
+  footnote_position_bottom = "20px",
+  primary_color = "#7dad47",
+  secondary_color = "#01467f",
+  inverse_header_color = "#FFFFFF",
+  code_font_google   = google_font("Fira Mono")
+)
+```
+
+class: center, middle
+
+# Sungkyunkwan University
+
+![](https://upload.wikimedia.org/wikipedia/en/thumb/4/40/Sungkyunkwan_University_seal.svg/225px-Sungkyunkwan_University_seal.svg.png)
+
+## Actuarial Science
+
+---
+# Introduction to Boosting method
+
+* One of the most powerful learning ideas
+
+* It was originally designed for classification problems.
+
+* Sequential model!
+
+---
+# Main idea
+
+Gather weak classifiers to produces a powerful committee
+
+```{r unitedwestand, echo=FALSE, fig.cap="", fig.align='center', out.width = '70%'}
+knitr::include_graphics("./unitedwestand.jpg")
+```
+
+---
+# AdaBoost.M1
+
+Freund and Schapire (1997) suggest the most popular boosting algorithm.
+
+Two class problem; 
+
+* Target variable $Y \in {-1, 1}$.
+
+* Predictors: $X$ (remember the multiple regression)
+
+* A classifier (models) $G$ produces a prediction taking one of the two values ${-1, 1}$.
+
+The error rate on the training sample is 
+
+$$
+error \ rate = \frac{1}{n}\sum_{i=1}^{n}I(y_i \ne G(\underline{x}_i))
+$$
+---
+# Sequential modeling building
+
+A weak classifier is one whose error rate is only **slightly better** than random guessing.
+
+* Let's build $M$ weak models; $G_1, ..., G_M$.
+
+Then, Adaboost classifiers can be written as follows;
+
+$$
+G(x) = sign\left(\sum_{m=1}^{M} \alpha_m G_m(x)\right)
+$$
+where $\alpha_1, ..., \alpha_M$ are determined by the algorithm.
+
+---
+# Algorithm **AdaBoost.M1.**
+
+1. Initialize the observation weights $w_i = 1/n$, $i=1,...,n$.
+1. For $m = 1$ to $M$:
+  
+  1) Fit a classifier $G_m(x)$ to the training data using weights $w_i$.
+  
+  2) Compute
+  $$err_{m}=\frac{\sum_{i=1}^{n}w_{i}I\left(y_{i}\ne G_{m}\left(x_{i}\right)\right)}{\sum_{i=1}^{n}w_{i}}$$
+  3) Compute $\alpha_m  = log((1-err_m)/err_m)$.
+  
+  4) Set $w_i \leftarrow w_i  exp[\alpha_m I(y_i \ne G_m(x_i))]$ where $i=1,...,n$.
+
+---
+# Obervations
+
+For each successive iteration, the observations weights are individually modified.
+
+1. Observations that were misclassified by the previous classifier have their weighs increased.
+
+1. Each successive classifier is forced to concentrate on those training observations that are missed by previous ones in the sequence.
+
+
+---
+# Adaboost
+
+Friedman et al. (2000) modifies the Adaboost.M1 so that the base learner returns the value between $-1$ to $1$, not the class label. Adaboost.M1 classifier
+
+$$
+G(x) = sign\left(\sum_{m=1}^{M} \alpha_m G_m(x)\right)
+$$
+
+can be viewed as an additive model
+
+$$
+f(x) = \sum_{m=1}^{M}\beta_m b(x;\gamma_m)
+$$
+where $\beta_m, m=1,...,M$ are the expantion coefficients, and $b(x;\gamma) \in \mathbb{R}$ are simple functions characterized by $\gamma$.
+
+---
+# Objective
+
+Remember the regression; minimize the loss function;
+
+$$
+\begin{align*}
+ & \underset{\left(\beta_{m},\gamma_{m}\right)_{i}^{M}}{min}\sum_{i=1}^{n}L\left(y_{i},f\left(x_{i}\right)\right)\\
+= & \underset{\left(\beta_{m},\gamma_{m}\right)_{i}^{M}}{min}\sum_{i=1}^{n}L\left(y_{i},\sum_{m=1}^{M}\beta_{m}b\left(x_{i};\gamma_{m}\right)\right)
+\end{align*}
+$$
+
+This often requires computationally intensive. We want to approximate the solution of this!
+
+---
+# Forward Stragewise Additive modeling
+
+Minimize the following loss sequentially for each $m$;
+
+$$\sum_{i=1}^{n}L\left(y_{i},\beta_{m}b\left(x_{i};\gamma_{m}\right)\right)$$
+
+
+---
+# Loss functions
+
+Which loss function we use? There are two type of loss function you should know.
+
+* Squared-error loss ( $L_2$ ): regression problem.
+
+$$L$$
+
+* Exponential loss: classification problem.
+
+---
+class: middle, center, inverse
+
+# Thanks!
+

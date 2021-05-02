@@ -1,0 +1,398 @@
+---
+title: "Lecture 8 - Intro. to classification models"
+subtitle: "Generalized Linear Models"
+author: 
+  - "Issac Lee"
+date: '`r Sys.Date()`'
+output:
+  xaringan::moon_reader:
+    self_contained: true
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(tidyverse)
+library(reticulate)
+library(xaringanthemer)
+library(magrittr)
+# style_duo_accent(
+#   text_font_size = "1.3rem",
+#   footnote_font_size = "0.6em",
+#   footnote_position_bottom = "20px",
+#   primary_color = "#7dad47",
+#   secondary_color = "#01467f",
+#   inverse_header_color = "#FFFFFF",
+#   code_font_google   = google_font("Fira Mono")
+# )
+```
+
+class: center, middle
+
+# Sungkyunkwan University
+
+![](https://upload.wikimedia.org/wikipedia/en/thumb/4/40/Sungkyunkwan_University_seal.svg/225px-Sungkyunkwan_University_seal.svg.png)
+
+## Actuarial Science
+
+---
+# Introduction to GLM(Generalized Linear Models)
+
+Why do we want to generalize the linear models?
+
+* The range of target variable doesn't match sometimes. 
+  
+  - For example, survive(= 1) or die(= 0).
+  
+  - Insurance claim counts only have positive integer. 
+
+* Variance of the target variable can varies on the mean; the regression assume the constant variance noise.
+
+---
+# What we want to generalize
+
+The linear regression assumes the following;
+
+$$y_{i}=\mathbf{x}_{i}^{T}\boldsymbol{\beta}+e_{i},\quad i=1,...,n$$
+
+where $e_{i}$ follows $\mathcal{N}(0, \sigma^2)$. 
+
+Therefore, the relationship between the mean of response variable is as follows;
+
+$$\mathbb{E}[Y] = \mathbf{X}^{T}\boldsymbol{\beta}$$
+where $\mathbf{X} = (1, X_1, X_2, ..., X_p)^T$ and $\boldsymbol{\beta} = (\beta_0, \beta_1, ..., \beta_p)$. This can be viewed as connecting the two objects with a function $g(x) = x$ which is a identity function.
+
+$$g(\mathbb{E}[Y]) = \mathbf{X}^{T}\boldsymbol{\beta}.$$
+---
+# Link function and GLM
+
+We can change this link function $g$ depends on the response variable $Y$.
+
+* The target variable $Y$ can be one of exponential family.
+
+* We need to connect right link functions for them.
+
+Conditions for the link function
+
+* $g$ continuously differentiable
+
+* $g$ strictly increase
+
+---
+# Link functions and distribution
+
+* Identity function - Normal
+
+* Negative inverse - Exponential, Gamma
+
+* Inverse squared - Inverse Gaussian
+
+* Log - Poisson
+
+* Logit - Bernoulli, Categorical
+
+---
+# Example (Logistic regression)
+
+Let us assume that we have $\{y_i, \mathbf{x}_i\}$ for $i=1,...,n$ like in the linear regression setting. However, now we have $y_i \in \{0, 1\}$.
+
+This reminds us of bernulli random variable.
+
+$$Y \sim Benulli(p)$$
+
+and the p.m.f. of $Y$ is as follows;
+$$f_{Y}(y) = p^y(1-p)^{1-y} \unicode{x1D7D9}(y\in\{0, 1\}) $$
+where $p\in \Omega = [0, 1]$.
+
+---
+# Example (Logistic regression)
+
+Remember we used S-shaped curve to convert linear regression values into the numbers between 0 and 1.
+
+.pull-left[
+$$\sigma(x) = \frac{1}{1+e^{-x}}$$
+
+Using this logistic function, we can convert the prediction values of regression into 0 to 1 scale. 
+
+$$0 \le \sigma(\mathbf{X^T\beta}) \le 1$$
+
+]
+.pull-right[
+```{r echo=FALSE, out.width="70%"}
+x <- seq(-6, 6, by=0.01)
+y <- 1/(1+exp(-x))
+tibble(x = x, y = y) %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_line() +
+  theme_bw()
+```
+
+]
+
+---
+# Example (Logistic regression)
+
+The link function $g$ is $f^{-1}$, the inverse of $f$. Since we connect the linear component with the mean of $Y$, $p$, the following equality holds;
+
+$$p = \mathbb{E}[Y] = f(\mathbf{X^T\beta})$$
+Therefore, it can be written as follows;
+$$g(\mathbb{E}[Y]) = g(p) = \mathbf{X^T\beta}$$
+where $g(x) = log(\frac{x}{1-x})$. Long story short, we are modeling the target variable $Y$ as
+$$Y \sim Bernulli(f(\mathbf{X^T\beta})) = Bernulli(\frac{1}{1 + e^{-\mathbf{X^T\beta}}})$$
+---
+# Canonical link
+
+Using a logit function as a link function, we have special property. Basically, we can use a lot of cdf of any continuous random variable to transform the regression values into the scale of 0 and 1. However, the logit function connects the canonical parameter of pdf of Benulli random varible with its mean.
+
+* This will give us a benefit that the MLE is **unique**.
+
+* If we use other link function, we are not guarantee that it has global maxima.
+
+
+---
+# Maximum likelihood of Bernulli
+
+Assume that we have IID random sample $\underline{y}_n$ from $Y \sim Bernulli(p)$. Find the MLE of $p$.
+
+
+```{r echo=FALSE}
+set.seed(2020)
+p <- 0.35
+```
+
+```{r}
+rbinom(20, 1, p)
+```
+
+---
+# MLE of logistic regression parameters
+
+```{r}
+example_data <- read.csv("./logistic_example.csv")
+
+example_data %>% head()
+example_data %>% dim()
+```
+
+---
+# MLE of logistic regression parameters
+
+`glm()` will give us the following parameters.
+
+```{r}
+model <- glm(admission ~ studytime + score, 
+             data = example_data,
+             family = binomial(link = "logit"))
+model$coefficients
+```
+
+---
+# Likelihood function of the observations
+
+$$
+\begin{align}
+L\left(\beta|\mathbf{X}, \underline{y}\right) & =\prod_{i=1}^{n}p\left(\beta|\mathbf{x}_{i},y_{i}\right)\\
+ & =\prod_{i=1}^{n}\sigma\left(\mathbf{x}_{i}^{T}\beta\right)^{y_{i}}\left(1-\sigma\left(\mathbf{x}_{i}^{T}\beta\right)\right)^{1-y_{i}}\\
+ & =\prod_{i=1}^{n}\pi_{i}^{y_{i}}\left(1-\pi_{i}\right)^{1-y_{i}}
+\end{align}
+$$
+
+---
+# Log Likelihood function of the observations
+
+$$
+\begin{align*}
+\ell\left(\beta\right) & =log\left(L\left(\underline{y}|\mathbf{X},\beta\right)\right)\\
+ & =\sum_{i=1}^{n}\left\{ y_{i}log\left(\pi_{i}\right)+\left(1-y_{i}\right)log\left(1-\pi_{i}\right)\right\} \\
+ & =\sum_{i=1}^{n}\left\{ y_{i}log\left(\sigma\left(\mathbf{x}_{i}^{T}\beta\right)\right)+\left(1-y_{i}\right)log\left(1-\sigma\left(\mathbf{x}_{i}^{T}\beta\right)\right)\right\} 
+\end{align*}
+$$
+
+Thus, we can say that the MLE of $\beta$, $\hat{\beta}$ is
+$$
+\hat{\beta} \overset{set}{=} \underset{\beta}{arg \ min} \ \ -\ell\left(\beta\right)
+$$
+There is no closed form solution for this.
+
+---
+# Derivative of $\sigma(x)$
+
+Verify yourself that the derivative of $\sigma(x)$ is
+
+$$\sigma'(x) = \sigma(x) (1-\sigma(x)) $$
+
+---
+# Optimization with gradient descent
+
+$$f(x_1, x_2) = 0.3 (x_1^2 + x_2^2)$$
+
+.pull-left[
+```{r echo=FALSE, message=FALSE, warning=FALSE, out.width='100%'}
+library(mosaic)
+plotFun(0.3 * (x1^2 + x2^2) ~ x1 & x2,
+        x1.lim = range(-3, 3), 
+        x2.lim = range(-3, 3),
+        surface = TRUE,
+        xlab = expression(x[1]),
+        ylab = expression(x[2]),
+        zlab = expression(f(x[1], x[2])),
+        par.settings = list(axis.line = list(col = "transparent")))
+```
+]
+.pull-right[
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, out.width='80%'}
+library(latticeExtra)
+p <- plotFun(0.3 * (x1^2 + x2^2) ~ x1 & x2,
+        x1.lim = range(-3, 3), 
+        x2.lim = range(-3, 3),
+        xlab = expression(x[1]),
+        ylab = expression(x[2]),
+        zlab = expression(f(x[1], x[2])))
+p + as.layer(xyplot(0 ~ 0, pch=10, col = "red"))
+```
+]
+
+---
+# Optimization with gradient descent
+
+Gradient descent is a first-order iterative optimization algorithm for finding a local minimum of a differentiable function.
+
+$$\mathbf{x}_{n+1} = \mathbf{x}_n - \eta \nabla f(\mathbf{x}_n)$$
+where the learning rate $\eta \in \mathbb{R}^{+}$.
+
+$$\nabla f\left(\mathbf{x}\right)=0.6\left(\begin{array}{c}
+x_{1}\\
+x_{2}
+\end{array}\right)$$
+
+---
+# **R** Code
+
+```{r}
+f <- function(vec){
+    0.3 * (vec[1]^2 + vec[2]^2)
+}
+grad_f <- function(xn, lrate){
+  xn - lrate * 0.6 * xn
+}
+
+# initial values
+m <- c(-2, -2)
+iter_n <- 1
+improve <- 1
+conv_threshold <- 0.0001
+max_n <- 2000
+result <- matrix(0, nrow = max_n, ncol = 2)
+while (improve > conv_threshold & iter_n < max_n) {
+    m_new <- grad_f(m, 0.1)
+    improve <- abs(f(m) - f(m_new))
+    result[iter_n,] <- m_new
+    m <- m_new
+    iter_n <- iter_n + 1
+}
+```
+
+---
+# Optimization with gradient descent
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(latticeExtra)
+p <- plotFun(0.3 * (x1^2 + x2^2) ~ x1 & x2,
+        x1.lim = range(-3, 1), 
+        x2.lim = range(-3, 1),
+        xlab = expression(x[1]),
+        ylab = expression(x[2]),
+        zlab = expression(f(x[1], x[2])))
+p + as.layer(xyplot(result[,1] ~ result[,2], pch=20, col = "red"))
+```
+
+---
+# Back to logistic regression MLE
+
+```{r}
+set.seed(2021)
+beta <- rnorm(3)
+sigma_f <- function(x){1/(1+exp(-x))}
+
+nll <- function(beta){
+  y <- example_data$admission
+  pi_vec <- sigma_f(matrix(cbind(1, 
+                                 example_data$studytime,
+                                 example_data$score),
+         ncol = 3) %*% matrix(beta, nrow = 3))
+  -sum(y * log(pi_vec) + (1 - y) * log(1 - pi_vec))
+}
+
+nll(beta)
+```
+
+---
+# Back to logistic regression MLE
+
+```{r}
+grad_nll <- function(beta){
+    y <- example_data$admission
+    xbeta <- matrix(cbind(1, example_data$studytime,
+                          example_data$score),
+         ncol = 3) %*% beta
+    pi_vec <- sigma_f(xbeta) 
+    -colSums(as.vector(y - pi_vec) * 
+               matrix(cbind(1, example_data$studytime,
+                               example_data$score), ncol = 3))
+}
+
+grad_nll(beta)
+```
+
+---
+# Gradient descent optimization
+
+.pull-left[
+```{r}
+# initial values
+set.seed(2021)
+beta <- rnorm(3)
+iter_n <- 1
+improve <- 1
+conv_threshold <- 1e-5
+max_n <- 10000
+result <- matrix(0, nrow = max_n, ncol = 3)
+while ((improve > conv_threshold) & (iter_n <= max_n)) {
+    beta_new <- beta - 0.001 * grad_nll(beta)
+    improve <- abs(nll(beta) - nll(beta_new))
+    result[iter_n,] <- beta_new
+    beta <- beta_new
+    iter_n <- iter_n + 1
+}
+```
+
+]
+.pull-right[
+
+```{r}
+result[iter_n-1,]
+
+model$coefficients
+```
+
+]
+
+
+
+---
+class: middle, center, inverse
+
+
+
+# Thanks!
+

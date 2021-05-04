@@ -333,8 +333,8 @@ grad_nll &lt;- function(beta){
          ncol = 3) %*% beta
     pi_vec &lt;- sigma_f(xbeta) 
     -colSums(as.vector(y - pi_vec) * 
-               matrix(cbind(1, example_data$studytime,
-                               example_data$score), ncol = 3))
+             matrix(cbind(1, example_data$studytime,
+                             example_data$score), ncol = 3))
 }
 
 grad_nll(beta)

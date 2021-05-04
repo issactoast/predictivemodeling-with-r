@@ -1,0 +1,46 @@
+---
+title: "Homework 2  Generalized Linear Models"
+author: "Due on 2021-05-14"
+date: ""
+documentclass: oblivoir
+XeTeXinputencoding: korean
+XeTeXdefaultencoding: korean
+output: 
+    bookdown::pdf_document2:
+        latex_engine: xelatex
+        toc: FALSE
+urlcolor: blue
+header-includes: |
+    \usepackage[hangul]{kotex}
+mainfont: NanumMyeongjo
+monofont: NanumGothicCoding
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = "cairo_pdf")
+knitr::opts_chunk$set(fig.showtext=TRUE)
+```
+
+# Notice {-}
+
+ - All homework should be turned in pdf format **using Rmarkdown**.
+ - Homework can be written in Korean.
+
+# Exponential family
+
+When a random variable $Y$ belongs to exponential family, then the pdf of the random variable can be written as following form:
+
+$$f_{Y}\left(y;\theta,\phi\right)=exp\left[\frac{y\theta-b\left(\theta\right)}{a\left(\phi\right)}+c\left(y,\phi\right)\right]$$
+
+where $a, b, c$ are functions, and the parameter $\theta$ is often referred to as canonical parameter.
+
+1) Express the p.d.f of random variable $Y$ in the above form, which follows the Bernulli $\theta$.
+
+$$Y	\sim Bernulli\left(\theta\right)
+f_{Y}\left(y;\theta\right)	=\theta^{y}\left(1-\theta\right)^{1-y}\mathbbm{1}$$
+
+2) Express the p.d.f of random variable $Y$ in the above form, which follows the Poisson $\theta$.
+
+# Generalized Linear Regression
+

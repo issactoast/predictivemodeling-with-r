@@ -353,3 +353,57 @@ train2 <- all_data2[train_index,]
 test2 <- all_data2[-train_index,]
 
 ```
+
+```{r}
+
+  ridge_model <- 
+    linear_reg(penalty = 0.01, # tuned penalty
+               mixture = 0) %>% # lasso: 1, ridge: 0
+    set_engine("glmnet")
+
+  ridge_fit <- 
+    ridge_model %>% 
+    fit(weekly_sales ~ ., data = train2)
+  
+  lasso_model <- 
+    linear_reg(penalty = 0.01, # tuned penalty
+               mixture = 1) %>% # lasso: 1, ridge: 0
+    set_engine("glmnet")
+
+  lasso_fit <- 
+    lasso_model %>% 
+    fit(weekly_sales ~ ., data = train2)
+
+
+```
+
+
+```{r warning=FALSE}
+result_ridge <- predict(ridge_fit, test2)
+result_ridge %>% head()
+result_ridge %<>%
+  mutate(.pred = sign(.pred) * (abs(.pred)^5))
+```
+
+```{r warning=FALSE}
+result_lasso <- predict(lasso_fit, test2)
+result_lasso %>% head()
+result_lasso %<>%
+  mutate(.pred = sign(.pred) * (abs(.pred)^5))
+```
+
+```{r}
+submission <- read_csv(file.path(file_path, "sampleSubmission.csv"))
+submission$Weekly_Sales <- result_ridge$.pred
+write.csv(submission, row.names = FALSE,
+          "ridge_regression.csv")
+submission %>% head()
+```
+
+```{r}
+submission <- read_csv(file.path(file_path, "sampleSubmission.csv"))
+submission$Weekly_Sales <- result_lasso$.pred
+write.csv(submission, row.names = FALSE,
+          "lasso_regression.csv")
+submission %>% head()
+```

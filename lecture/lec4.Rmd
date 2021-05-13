@@ -163,7 +163,6 @@ $$\frac{\partial L}{\partial\beta}=\left(\begin{array}{c}
 \frac{\partial L}{\partial\beta_{p}}
 \end{array}\right)$$
 
-
 ---
 # Practice
 

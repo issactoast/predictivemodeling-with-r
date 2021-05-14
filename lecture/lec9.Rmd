@@ -1,0 +1,620 @@
+---
+title: "Lecture 9 - Intro. to deep learning in R"
+subtitle: "Torch package in R"
+author: 
+  - "Issac Lee"
+date: '`r Sys.Date()`'
+output:
+  xaringan::moon_reader:
+    self_contained: true
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(tidyverse)
+library(reticulate)
+library(xaringanthemer)
+library(magrittr)
+# style_duo_accent(
+#   text_font_size = "1.3rem",
+#   footnote_font_size = "0.6em",
+#   footnote_position_bottom = "20px",
+#   primary_color = "#7dad47",
+#   secondary_color = "#01467f",
+#   inverse_header_color = "#FFFFFF",
+#   code_font_google   = google_font("Fira Mono")
+# )
+```
+
+class: center, middle
+
+# Sungkyunkwan University
+
+![](https://upload.wikimedia.org/wikipedia/en/thumb/4/40/Sungkyunkwan_University_seal.svg/225px-Sungkyunkwan_University_seal.svg.png)
+
+## Actuarial Science
+
+---
+# 딥러닝 with R
+
+R을 사용하여 딥러닝을 하기 위해서는 크게 두 가지의 패키지가 있다. 
+
+Tensorflow (구글) vs. Torch (페이스북)
+
+* tensorflow가 더 성숙한 패키지 - python 기반
+
+* torch 패키지는 R과 C언어로만 이루어져서 좀 더 R커뮤니티가 좋아함.
+
+* Tensorflow보다 Pytorch가 좀 더 자유도가 높다. 
+
+  - (어렵다는 뜻. 연구하고 논문쓰기 좋음.)
+
+---
+# torch vs R
+
+`torch` 패키지는 R 패키지 이지만, R패키지가 아님. 개별적인 언어를 배운다고 생각하면 좋음.
+
+* 딥러닝이 생소하고, 어려운 이유.
+
+  - 개별적인 라이브러리를 공부하고, 배워야 함.
+
+  - 프로그래밍 지식을 필요로 함.
+
+* 그럼에도 불구하고 배우는 이유: 복잡한 모델을 **상대적**으로 간단하게 구현할 수 있음.
+  
+---
+# 첫 걸음 떼기 - 텐서 (tensor)
+
+torch의 기본 행렬 단위이라고 생각하면 좋음. 다차원 Array라고 지금은 생각하면 쉬움.
+
+```{r, message=FALSE}
+library(torch)
+x <- torch_empty(5, 3)
+x
+dim(x)
+```
+
+---
+# 랜덤 텐서 (random tensor)
+
+텐서의 각 자리에 0에서 1사이의 난수로 채워서 만드는 방법이다.
+
+* `torch_rand()` 함수를 사용한다.
+
+.pull-left[
+```{r}
+rand_tensor <-  torch_rand(5, 3)
+rand_tensor
+```
+
+]
+.pull-right[
+```{r}
+rand_tensor[1:3,]
+```
+
+]
+
+---
+# 단위(identity) 텐서 와 영(0) 텐서
+
+```{r}
+x <- torch_eye(4)
+x
+```
+
+```{r}
+x <- torch_zeros(3, 5)
+x
+```
+
+---
+# 텐서 만들기 - 영리하게 만들기
+
+```{r}
+x <- matrix(c(1, 2, 3, 
+              4, 5, 6), ncol = 3)
+y <- torch_tensor(x)
+y
+```
+
+```{r}
+y <- torch_tensor(matrix(seq(0.1, 1, by = 0.1), ncol = 2))
+y
+```
+
+
+---
+# 텐서 (tensor - torch) vs. 행렬 (matrix - R)
+
+torch 텐서는 R의 행렬과는 달라서 R에서의 연산자가 작동하지 않음. 정의 되어 있는 세계가 다르다고 생각하자. (현재는 그렇다.)
+
+```{r error=TRUE}
+x <- torch_zeros(3, 5)
+x %*% t(x)
+```
+
+텐서 끼리의 연산을 따로 배워야 함.
+
+---
+# 텐서의 연산 (tensor operations)
+
+.pull-left[
+```{r}
+# set.seed() in torch
+torch_manual_seed(2021)
+A <- torch_tensor(1:6)
+B <- torch_rand(2, 3)
+C <- torch_rand(2, 3, 2)
+A
+```
+
+]
+.pull-right[
+```{r}
+B; C
+```
+
+]
+
+---
+# 텐서의 특징
+
+* 행렬처럼 당연히 모양을 신경써야 함. 같은 모양이어야지 덧셈 뺄셈이 가능.
+
+* 들어있는 원소들의 타입을 신경써야함. 정수 $\ne$ 실수
+
+```{r error=TRUE}
+A[1] <- 0.125
+A
+```
+
+---
+# 형(type) 변환
+
+정수형 텐서 A를 실수형으로 바꾸는 방법. `to()` 함수를 사용한다.
+
+```{r}
+A$dtype
+A <- A$to(dtype = torch_double())
+A$dtype
+```
+
+---
+# 모양(shape) 변환
+
+정수형 텐서 A를 실수형 바꾸었다. 다른 두 텐서끼리 연산을 하려면 모양을 맞춰줘야 한다. A의 모양을 B의 모양과 같이 바꿔보도록 하자.
+
+```{r}
+A <- A$view(c(2, 3))
+A
+A$size()
+```
+
+* 자동으로 torch가 모양을 계산하도록 하고 싶은 차원을 `-1`을 설정해준다.
+
+```{r}
+A$view(c(1, -1))
+```
+
+
+---
+# 덧셈과 뺄셈
+
+```{r}
+A + B
+```
+
+```{r}
+B <- B + 2
+B <- B$to(dtype = torch_long()) # caution!
+A <- A$to(dtype = torch_long())
+A + B
+```
+
+---
+# 상수와의 연산
+
+.pull-left[
+```{r}
+A + 2
+A^2
+```
+
+]
+.pull-right[
+```{r}
+A %/% 3
+A %% 3
+sqrt(A)
+log(A)
+```
+]
+
+---
+# 텐서의 곱셈
+
+행렬의 연산처럼 모양이 맞아야 한다.
+ 
+.pull-left[
+```{r}
+A <- A$to(torch_float())
+D <- C[1,,]
+torch_matmul(A, D)
+```
+
+]
+.pull-right[
+```{r}
+torch_mm(A, D)
+A$mm(D)
+```
+
+]
+
+---
+# 텐서의 전치 (transpose)
+
+.pull-left[
+전치(transpose)는 주어진 텐서를 뒤집는 것인데, 다음의 문법 구조를 가지고 있다.
+
+`torch_transpose(input, dim0, dim1)`
+
+`dim0`, `dim1`는 바꿀 차원을 의미한다. 
+
+```{r}
+A
+# A$transpose(1, 2)
+torch_transpose(A, 1, 2)
+```
+
+]
+.pull-right[
+* 3 차원 이상일 때는 
+
+```{r}
+C
+```
+
+]
+
+---
+# 텐서의 전치 (transpose)
+
+텐서 $C$는 위와 같이 2차원 텐서가 두 개 포개져 있다고 생각하면 된다.
+
+주어진 텐서 $C$ 안의 포개져있는 2차원 텐서들을 전치하기 위해서는 두번째와 세번째 차원을 바꿔줘야 한다.
+
+```{r}
+torch_transpose(C, 2, 3)
+```
+
+---
+# R에서의 3차원 배열
+
+R에서의 다차원 배열을 다루는 방법과, torch의 텐서 사이에는 차이가 있다. 중첩되는 차원이 R에서는 뒤에 붙고, torch에서는 앞으로 붙는다고 생각하자.
+
+```{r}
+array(1:12, c(2, 3, 2)) 
+```
+
+
+---
+# 다차원 텐서와 1차원 벡터 텐서의 연산
+
+* `recycling` 개념 적용됨
+
+```{r}
+A
+A + torch_tensor(1:3)
+```
+
+---
+# GPU 사용 체크
+
+```{r}
+cuda_is_available()
+```
+
+---
+# GPU 이용하기
+
+torch에서 GPU를 사용하기 위해서는 CPU에서 정의된 텐서를 GPU로 옮겨줘야한다. 
+
+```{r eval = FALSE}
+gpu <- torch_device("cuda")
+A$cuda() # to gpu
+A$to(device = gpu)
+A$to(device = gpu, dtype = torch_double())
+```
+
+* GPU 상에서 직접 정의해줄 수도 있다.
+
+```{r eval=FALSE}
+b <- torch_tensor(1:4, device=gpu)
+b
+b$cpu() # to cpu
+```
+
+---
+class: middle, center, inverse
+
+쉬는 시간
+
+---
+# R6
+
+.pull-left[
+* R에서 객체지향언어 (Object Oriented Programming; OOP)를 할 수 있도록 해주는 패키지
+
+* `torch`는 `R6` 위에 정의가 되어있음.
+
+```{r}
+# install.packages("R6")
+library(R6)
+```
+
+]
+.pull-right[
+```{r, echo=FALSE, fig.cap="", fig.align='center', out.width = '80%'}
+knitr::include_graphics("https://r6.r-lib.org/reference/figures/logo.png")
+```
+
+]
+
+
+---
+# 클래스(Class)와 멤버함수(Method), 그리고 필드(Field)
+
+R6 패키지에는 딱 하나의 함수가 존재
+
+* `R6Class()` 함수 - 입력값 2개 
+
+  - 첫번째는 클래스 이름 clasename
+  - 두번째는 공개될 정보들을 담을 public
+
+```{r}
+ExampleClass <- R6Class(classname = "Example", public = list(
+    # 변수(fields) 정의
+    # 멤버함수(methods) 정의
+))
+ExampleClass
+```
+
+---
+# 클래스 이름의 규칙
+
+1. UpperCamelCase 형식
+
+클래스의 이름을 선언할 때 띄어쓰기를 하지않고, 대신 대문자를 사용
+
+2. snake_case 형식
+
+리스트에 들어가는 요소들의 이름은 `snake_case`를 사용한다. 즉, 모두 소문자를 유지하고, 띄어쓰기 대신에 밑줄을 사용하여 선언한다.
+
+* 다른 사람이 짜놓은 코드를 보게 클래스인지, 클래스 안에 정의된 함수 혹은 변수인지를 구분할 수 있음.
+
+---
+# 클래스는 왜 필요할까?
+
+**중복되는 많은 함수들을 효율적으로 사용하기 위해서 사용**
+
+#### 학생자료 입력 예제
+
+```{r}
+student <- function(){
+    list()
+}
+issac <- student()
+bomi <- student()
+issac; bomi
+```
+
+---
+# 추가 정보 입력
+
+.pull-left[
+issac
+
+* last name: Lee
+* first name: Issac
+* email: issac-lee@gmail.com
+* midterm: 70
+* final: 50
+]
+.pull-right[
+bomi
+
+* last name: Kim
+* first name: Bomi
+* email: bomi-kim@gmail.com
+* midterm: 65
+* final: 80
+]
+
+
+---
+# 정보입력 
+
+.pull-left[
+```{r}
+issac$first <- "Issac"
+issac$last <- "Lee"
+issac$email <- "issac-lee@gmail.com"
+issac$midterm <- 70
+issac$final <- 50
+
+bomi$first <- "Bomi"
+bomi$last <- "Kim"
+bomi$email <- "bomi-kim@gmail.com"
+bomi$midterm <- 65
+bomi$final <- 80
+```
+
+]
+.pull-right[
+```{r}
+issac
+```
+
+]
+
+---
+# 클래스(Class) 정의하기
+
+데이터로 입력되는 각 개인들은 성과 이름, 이메일, 중간, 기말고사 점수의 정보들을 가지고 있다. 이것을 사용하여 다음과 같이 Student 클래스를 선언 할 수 있다.
+.pull-left[
+```{r}
+Student <- R6Class("Student", list(
+    # 필요한 변수 (field) 선언
+    first = NULL,
+    last = NULL,
+    email = NULL,
+    midterm = NA,
+    final = NA,
+    
+    # 클래스 안의 객체를 만들때 사용되는 initialize
+    initialize = function(first, last, 
+                          midterm, final){
+        self$first = first
+        self$last  = last
+        self$email = glue::glue("{tolower(first)}-{tolower(last)}@gmail.com")
+        self$midterm = midterm
+        self$final = final
+    }    
+))
+```
+
+]
+.pull-right[
+```{r}
+Student
+
+```
+
+]
+
+---
+# 인스턴스 만들기 
+
+<Student> object generator 라는 부분을 주목하자.
+
+`Student` 라는 클래스는 객체(object)들을 만들어내는 생성자(generator)라는 것을 알 수 있다. `Student` 생성자를 통해서 도장을 찍듯, new() 함수를 사용하여 `issac`과 `bomi`를 만들어보자.
+
+```{r}
+issac <- Student$new("Issac", "Lee", 70, 50)
+bomi <- Student$new("Bomi", "Kim", 65, 80)
+issac
+```
+
+---
+# `print()` 를 사용한 결과물 정리
+
+.pull-left[
+```{r eval=FALSE}
+Student <- R6Class("Student", list(
+    # 필요한 변수 (field) 선언
+    first = NULL,
+    last = NULL,
+    email = NULL,
+    midterm = NA,
+    final = NA,
+    
+    # 클래스 안의 객체를 만들때 사용되는 initialize
+    initialize = function(first, last, midterm, final){
+        self$first = first
+        self$last  = last
+        self$email = glue::glue("{tolower(first)}-{tolower(last)}@gmail.com")
+        self$midterm = midterm
+        self$final = final
+    }
+```
+
+]
+.pull-right[
+```{r eval=FALSE}
+,
+    print = function(...){
+        cat("Student: \n")
+        cat(glue::glue("
+                Name  : {self$first} {self$last}
+                E-mail: {self$email}
+                Midterm Score : {self$midterm}
+                Final Score: {self$final}
+            "))
+        invisible(self)
+    }
+))
+
+```
+
+]
+
+---
+#
+
+```{r echo=FALSE}
+Student <- R6Class("Student", list(
+    # 필요한 변수 (field) 선언
+    first = NULL,
+    last = NULL,
+    email = NULL,
+    midterm = NA,
+    final = NA,
+    
+    # 클래스 안의 객체를 만들때 사용되는 initialize
+    initialize = function(first, last, midterm, final){
+        self$first = first
+        self$last  = last
+        self$email = glue::glue("{tolower(first)}-{tolower(last)}@gmail.com")
+        self$midterm = midterm
+        self$final = final
+    },
+    print = function(...){
+        cat("Student: \n")
+        cat(glue::glue("
+                Name  : {self$first} {self$last}
+                E-mail: {self$email}
+                Midterm Score : {self$midterm}
+                Final Score: {self$final}
+            "))
+        invisible(self)
+    }
+))
+```
+
+```{r}
+soony <- Student$new("Soony", "Kim", 70, 20)
+soony
+```
+
+---
+# 새로운 함수 (멤버 함수) 추가
+
+
+
+```{r}
+Student$set("public", "total", NA)
+Student$set("public", "calculate_total", function(){
+    self$total <- self$midterm + self$final
+    invisible(self)
+})
+```
+
+
+---
+class: middle, center, inverse
+
+
+
+# Thanks!

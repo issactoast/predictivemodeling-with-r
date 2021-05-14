@@ -149,23 +149,34 @@ $$
 This often requires computationally intensive. We want to approximate the solution of this!
 
 ---
-# Forward Stragewise Additive modeling
-
-Minimize the following loss sequentially for each $m$;
-
-$$\sum_{i=1}^{n}L\left(y_{i},\beta_{m}b\left(x_{i};\gamma_{m}\right)\right)$$
-
-
----
 # Loss functions
 
 Which loss function we use? There are two type of loss function you should know.
 
 * Squared-error loss ( $L_2$ ): regression problem.
 
-$$L$$
+$$L(y, f(x)) = (y - f(x))^2$$
 
 * Exponential loss: classification problem.
+
+$$L(y, f(x)) = exp(-yf(x))$$
+
+---
+# Forward Stragewise Additive modeling
+
+Approximate solution to the objective function by sequentially adding new basis functions without change the previous paramters;
+
+For $L_2$ loss function,
+
+$$\begin{align*}
+L\left(y,f\left(x\right)\right)= & \left(y-f\left(x\right)\right)^{2}\\
+= & \left(y-\left(f_{m-1}\left(x\right)+\beta b\left(x;\gamma\right)\right)\right)^{2}\\
+= & \left(y-f_{m-1}\left(x\right)-\beta b\left(x;\gamma\right)\right)^{2}\\
+= & \left(r-\beta b\left(x;\gamma\right)\right)^{2}
+\end{align*}$$
+
+We can find the best fitted model to the residuals from the previous step.
+
 
 ---
 class: middle, center, inverse

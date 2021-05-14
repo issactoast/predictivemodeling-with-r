@@ -1,0 +1,91 @@
+---
+title: "Homework 2 - Generalized Linear Models"
+author: "Due on 2021-05-14"
+date: ""
+# documentclass: oblivoir
+# XeTeXinputencoding: korean
+# XeTeXdefaultencoding: korean
+output: 
+    bookdown::pdf_document2:
+        latex_engine: xelatex
+        toc: FALSE
+urlcolor: blue
+header-includes: |
+    \usepackage{bbold}
+# mainfont: NanumMyeongjo
+# monofont: NanumGothicCoding
+# \usepackage[hangul]{kotex}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = "cairo_pdf")
+knitr::opts_chunk$set(fig.showtext=TRUE)
+```
+
+# Notice {-}
+
+ - All homework should be turned in pdf format **using Rmarkdown**.
+ - Homework can be written in Korean.
+
+# Exponential family
+
+When a random variable $Y$ belongs to exponential family, then the pdf of the random variable can be written as following form:
+
+$$f_{Y}\left(y;\theta,\phi\right)=exp\left[\frac{y\theta-b\left(\theta\right)}{a\left(\phi\right)}+c\left(y,\phi\right)\right]$$
+
+where $a, b, c$ are functions, and the parameter $\theta$ is often referred to as **canonical parameter**.
+
+1) Express the p.d.f of random variable $Y$
+$$Y \sim Bernulli\left(p\right)$$
+in the above form, which follows the Bernulli $p$:
+$$f_{Y}\left(y;p\right)=p^{y}\left(1-p\right)^{1-y}\mathbb{1}_{\left(y\in\{0,1\}\right)}$$
+
+2) Express the p.d.f of random variable $Y$
+$$Y\sim Poisson\left(\lambda\right)$$
+in the above form, which follows the Poisson $\lambda$:
+$$f_{Y}\left(y;\lambda\right)=\frac{\lambda^{y}e^{-\lambda}}{y!}\mathbb{1}_{\left(y\in\mathbb{Z^{+}}\right)}$$
+
+3) We have learned that the link function in GLM is a function $g$ which connects the linear components with the $\mu=\mathbb{E}[Y]$. If link function $g$ satisfies the following condition, then $g$ is called a *canonical link function*.
+$$\theta = g(\mu)$$
+Verify the logit link for the logistic regression  and the log link for the poisson regression are the canonical link functions.
+
+# Maximum Likelihood Estimator of Poisson Regression
+
+```{r tab1, echo=FALSE}
+example_data <- tibble::tribble(
+    ~Policy, ~Policy.Years, ~Gender, ~Territory, ~Claims,
+         1L,            5L,     "M",     "East",      0L,
+         2L,            5L,     "F",     "East",      0L,
+         3L,            4L,     "M",     "East",      1L,
+         4L,            3L,     "F",     "West",      1L,
+         5L,            4L,     "F",     "East",      0L,
+         6L,            3L,     "F",     "West",      1L,
+         7L,            5L,     "M",     "West",      0L,
+         8L,            5L,     "M",     "West",      2L,
+         9L,            3L,     "M",     "East",      1L,
+        10L,            2L,     "F",     "East",      1L,
+        11L,            4L,     "M",     "West",      1L,
+        12L,            5L,     "F",     "West",      0L
+    )
+
+knitr::kable(example_data, 
+             col.names = colnames(example_data),
+             caption = "Example data for Problem 2",
+             align = "ccccc", booktab = TRUE)
+```
+
+Save Table \@ref(tab:tab1) into `example_data` and do the Poisson regression using `Gender` over `Claims` as follows:
+
+1) Calculate the coefficients by using the following code.
+
+```{r eval=FALSE}
+glm(Claims ~ Gender + Territory,
+family = poisson(link=log), data = example_data)
+```
+
+2) Find the coefficients of Poisson regression above using an user define `R` function via gradient descent algorithm. Your answer must include the following steps:
+
+    - Define Likelihood and Loglikelihood function
+
+    - Calculate gradient of Loglikelihood function with repect to $\beta$.

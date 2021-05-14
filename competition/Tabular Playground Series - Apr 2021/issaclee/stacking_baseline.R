@@ -170,7 +170,6 @@ result
 
 result
 
-
 submission <- read_csv(file.path(file_path, "sample_submission.csv"),
                        col_types = cols(PassengerId = col_integer(),
                                         Survived = col_integer()))

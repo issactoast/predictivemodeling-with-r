@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Introduction to deeplearning</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Issac" />
+    <script src="libs/header-attrs-2.8/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/tile-view-0.2.6/tile-view.css" rel="stylesheet" />
+    <script src="libs/tile-view-0.2.6/tile-view.js"></script>
+    <link href="libs/panelset-0.2.6/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.2.6/panelset.js"></script>
+    <script type="application/json" id="xaringanExtra-editable-docid">{"id":"x952b5046ca748228fbdf85708273410","expires":14}</script>
+    <script src="libs/himalaya-1.1.0/himalaya.js"></script>
+    <script src="libs/js-cookie-3.0.0/js.cookie.js"></script>
+    <link href="libs/editable-0.2.6/editable.css" rel="stylesheet" />
+    <script src="libs/editable-0.2.6/editable.js"></script>
+    <link rel="stylesheet" href="css/statisticsplaybook.css" type="text/css" />
+    <link rel="stylesheet" href="css/statisticsplaybook-fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+
+class: title-slide, left, bottom
+
+# Introduction to deeplearning
+----
+## **Neural Net training with Torch**
+### Issac
+### 2021년 5월 27일
+
+---
+class: inverse, middle, center
+
+# 지난시간 복습
+
+Neural Net 생성 코드
+
+---
+# 신경망 생성 절차
+
+.left-column[
+## nn_module
+]
+.right-column[
+
+기본적으로 세가지 요소가 필요
+
+* classname
+
+* initialize
+
+  신경망 객체가 만들어질때 처음으로 실행되는 함수
+  신경망에 들어가는 요소들 (layer, activation function)을 정의하는 단계
+
+* forward
+
+  실제 신경망 구조를 정의
+  데이터가 들어와서 나가는 흐름을 정의하는 단계
+]
+
+---
+# 신경망 생성 예제
+
+.left-column[
+## 1단 신경망
+]
+.right-column[
+
+
+```r
+TwoLayerNet &lt;- nn_module(
+    classname = "TowLayerNet",
+    initialize = function(data_in, hidden, data_out){
+        self$hidden1 &lt;- nn_linear(data_in, hidden)
+        self$output_layer &lt;- nn_linear(hidden, data_out)
+        self$tanh &lt;- nn_tanh()
+    },
+    forward = function(X) {
+        x &lt;- self$tanh(self$hidden1(X))
+        y_hat &lt;- self$output_layer(x)
+        return(y_hat)
+    }
+)
+```
+
+]
+
+---
+class: inverse, middle, center
+
+# 신경망 학습 구조
+
+Neural Net training with `torch`
+
+---
+# 신경망 학습에 필요한 것들
+
+.left-column[
+
+]
+.right-column[
+* 신경망
+
+
+```r
+my_net &lt;- TwoLayerNet(8, 10, 3)
+```
+
+* 손실함수
+
+    알맞은 손실함수를 `torch` 라이브러리에서 선택
+
+
+```r
+mse_loss &lt;- nn_mse_loss(reduction = "mean")
+```
+
+
+* 경사하강법 구현
+
+
+```r
+optimizer &lt;- optim_sgd(my_net$parameters, lr = 1e-5)
+```
+
+
+]
+
+---
+# 신경망 학습 구조
+
+.panelset[
+.panel[.panel-name[손실함수계산]
+
+.left-column[
+
+]
+.right-column[
+
+
+```r
+store_loss &lt;- rep(0, 50000)
+for (epoch in 1:50000){
+    optimizer$zero_grad()
+*   output &lt;- my_net(x_tensor)
+*   loss &lt;- mse_loss(output, y_tensor)
+    loss$backward()
+    optimizer$step()
+    store_loss[epoch] &lt;- as.numeric(loss$item())
+  
+    if (epoch %% 5000 == 0){
+        cat(sprintf("Loss at epoch %d: %.2f\n", epoch, store_loss[epoch]))
+    }
+}
+```
+
+]
+
+]
+.panel[.panel-name[경사하강법]
+
+.left-column[
+
+]
+.right-column[
+
+
+```r
+store_loss &lt;- rep(0, 50000)
+for (epoch in 1:50000){
+*   optimizer$zero_grad()
+    output &lt;- my_net(x_tensor)
+    loss &lt;- mse_loss(output, y_tensor)
+*   loss$backward()
+*   optimizer$step()
+    store_loss[epoch] &lt;- as.numeric(loss$item())
+  
+    if (epoch %% 5000 == 0){
+        cat(sprintf("Loss at epoch %d: %.2f\n", epoch, store_loss[epoch]))
+    }
+}
+```
+
+]
+
+]
+
+]
+
+---
+class: inverse, middle, center
+
+# 데이터 준비하기
+
+Dataset &amp; Dataloader in `torch`
+
+---
+# `torch` 데이터셋
+
+* 잊지말아야 할 사실! `torch`와 `R`은 엄연히 다름.
+
+.left-column[
+## Dataset 클래스 생성자
+]
+.right-column[
+
+신경망 생성과 거의 같은 구조로 데이터셋 객체를 만들어 줌.
+
+* name
+
+* initialize
+
+* .getitem
+
+* .length
+
+]
+
+---
+# `torch` 데이터셋 예제
+
+.panelset[
+.panel[.panel-name[펭귄데이터]
+.left-column[
+
+]
+.right-column[
+
+
+```r
+library(palmerpenguins)
+penguins %&gt;% head(5)
+```
+
+```
+## # A tibble: 5 x 8
+##   species island bill_length_mm bill_depth_mm flipper_length_… body_mass_g sex  
+##   &lt;fct&gt;   &lt;fct&gt;           &lt;dbl&gt;         &lt;dbl&gt;            &lt;int&gt;       &lt;int&gt; &lt;fct&gt;
+## 1 Adelie  Torge…           39.1          18.7              181        3750 male 
+## 2 Adelie  Torge…           39.5          17.4              186        3800 fema…
+## 3 Adelie  Torge…           40.3          18                195        3250 fema…
+## 4 Adelie  Torge…           NA            NA                 NA          NA &lt;NA&gt; 
+## 5 Adelie  Torge…           36.7          19.3              193        3450 fema…
+## # … with 1 more variable: year &lt;int&gt;
+```
+
+]
+
+]
+.panel[.panel-name[전처리]
+
+.left-column[
+
+]
+.right-column[
+
+```r
+library(recipes)
+
+penguin_data &lt;- penguins %&gt;% 
+  recipe(species ~ .) %&gt;%
+  step_impute_mode(all_nominal()) %&gt;% 
+  step_impute_mean(all_numeric()) %&gt;% 
+  step_dummy(all_nominal(), -all_outcomes()) %&gt;% 
+  step_integer(all_nominal()) %&gt;% 
+  step_normalize(all_predictors(), -all_outcomes()) %&gt;% 
+  prep() %&gt;% juice()
+
+penguin_data %&gt;% dim()
+```
+
+```
+## [1] 344   9
+```
+
+]
+
+]
+.panel[.panel-name[입력 features]
+
+.left-column[
+
+]
+.right-column[
+
+
+```r
+penguin_data %&gt;% head()
+```
+
+```
+## # A tibble: 6 x 9
+##   bill_length_mm bill_depth_mm flipper_length_mm body_mass_g  year species
+##            &lt;dbl&gt;         &lt;dbl&gt;             &lt;dbl&gt;       &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+## 1         -0.886         0.787          -1.42      -0.565    -1.26       1
+## 2         -0.812         0.126          -1.06      -0.502    -1.26       1
+## 3         -0.665         0.431          -0.422     -1.19     -1.26       1
+## 4          0             0               0.00601    0.000305 -1.26       1
+## 5         -1.33          1.09           -0.565     -0.940    -1.26       1
+## 6         -0.849         1.75           -0.779     -0.690    -1.26       1
+## # … with 3 more variables: island_Dream &lt;dbl&gt;, island_Torgersen &lt;dbl&gt;,
+## #   sex_male &lt;dbl&gt;
+```
+
+]
+
+]
+
+.panel[.panel-name[Dataset 클래스]
+.left-column[
+
+]
+.right-column[
+
+```r
+penguin_dataset &lt;- dataset(
+  name = "penguin_data",
+  initialize = function() {
+      self$data &lt;- torch_tensor(as.matrix(select(penguin_data, species, everything())))
+  },
+  .getitem = function(index) {
+      x &lt;- self$data[index, 2:9]
+      y &lt;- self$data[index, 1]
+      
+      list(x, y)
+  },
+  .length = function() {
+        self$data$size()[[1]]
+  }
+)
+```
+]
+]
+
+]
+
+---
+# 펭귄 데이터셋
+
+.panelset[
+.panel[.panel-name[데이터 객체생성]
+.left-column[
+데이터 객체생성
+]
+.right-column[
+
+```r
+torch_penguin_data &lt;- penguin_dataset()
+torch_penguin_data
+```
+
+```
+## &lt;penguin_data&gt;
+##   Inherits from: &lt;dataset&gt;
+##   Public:
+##     .getitem: function (index) 
+##     .length: function () 
+##     clone: function (deep = FALSE) 
+##     data: torch_tensor, R7
+##     initialize: function ()
+```
+]
+]
+.panel[.panel-name[데이터 샘플]
+
+.left-column[
+
+]
+.right-column[
+
+```r
+torch_penguin_data$.getitem(1:6)
+```
+
+```
+## [[1]]
+## torch_tensor
+## -0.8858  0.7866 -1.4205 -0.5650 -1.2575 -0.7497  2.3662  0.9587
+## -0.8123  0.1264 -1.0638 -0.5024 -1.2575 -0.7497  2.3662 -1.0400
+## -0.6654  0.4311 -0.4219 -1.1903 -1.2575 -0.7497  2.3662 -1.0400
+##  0.0000  0.0000  0.0060  0.0003 -1.2575 -0.7497  2.3662  0.9587
+## -1.3267  1.0913 -0.5646 -0.9401 -1.2575 -0.7497  2.3662 -1.0400
+## -0.8491  1.7515 -0.7785 -0.6900 -1.2575 -0.7497  2.3662  0.9587
+## [ CPUFloatType{6,8} ]
+## 
+## [[2]]
+## torch_tensor
+##  1
+##  1
+##  1
+##  1
+##  1
+##  1
+## [ CPUFloatType{6} ]
+```
+
+]
+
+]
+
+.panel[.panel-name[데이터로더]
+.left-column[
+
+]
+.right-column[
+
+```r
+penguin_dl &lt;- dataloader(torch_penguin_data, batch_size = 8)
+penguin_dl$.length()
+```
+
+```
+## [1] 43
+```
+
+]
+]
+
+.panel[.panel-name[batch 구조이해]
+.left-column[
+
+]
+.right-column[
+
+```r
+b &lt;- penguin_dl$.iter()$.next()
+length(b)
+```
+
+```
+## [1] 2
+```
+
+```r
+b[[1]]
+```
+
+```
+## torch_tensor
+## -0.8858  0.7866 -1.4205 -0.5650 -1.2575 -0.7497  2.3662  0.9587
+## -0.8123  0.1264 -1.0638 -0.5024 -1.2575 -0.7497  2.3662 -1.0400
+## -0.6654  0.4311 -0.4219 -1.1903 -1.2575 -0.7497  2.3662 -1.0400
+##  0.0000  0.0000  0.0060  0.0003 -1.2575 -0.7497  2.3662  0.9587
+## -1.3267  1.0913 -0.5646 -0.9401 -1.2575 -0.7497  2.3662 -1.0400
+## -0.8491  1.7515 -0.7785 -0.6900 -1.2575 -0.7497  2.3662  0.9587
+## -0.9225  0.3295 -1.4205 -0.7213 -1.2575 -0.7497  2.3662 -1.0400
+## -0.8674  1.2437 -0.4219  0.5918 -1.2575 -0.7497  2.3662  0.9587
+## [ CPUFloatType{8,8} ]
+```
+
+]
+]
+
+]
+
+---
+# 학습하기
+
+.panelset[
+.panel[.panel-name[학습준비]
+.left-column[
+
+]
+.right-column[
+
+```r
+device &lt;- if (cuda_is_available()) torch_device("cuda:0") else "cpu"
+my_net &lt;- my_net$to(device = device)
+
+criterion &lt;- nn_cross_entropy_loss()
+optimizer &lt;- optim_sgd(my_net$parameters, 
+                       lr = 0.1, momentum = 0.9)
+num_epochs &lt;- 5
+
+my_net$train()
+```
+
+]
+]
+.panel[.panel-name[학습루프]
+.left-column[
+
+]
+.right-column[
+
+```r
+for (epoch in 1:num_epochs) {
+    train_losses &lt;- c()  
+    
+    coro::loop(for (b in penguin_dl) {
+        optimizer$zero_grad()
+        output &lt;- my_net(b[[1]]$to(device = device))
+        loss &lt;- criterion(output, b[[2]]$to(device = device, dtype  = torch_long()))
+        loss$backward()
+        optimizer$step()
+        loss &lt;- loss$item()
+        train_losses &lt;- c(train_losses, loss)
+    })
+    cat(sprintf("\nLoss at epoch %d: training: %3f\n", epoch, mean(train_losses)))
+    
+}
+```
+
+```
+## 
+## Loss at epoch 1: training: 0.852929
+## 
+## Loss at epoch 2: training: 2.296094
+## 
+## Loss at epoch 3: training: 3.181354
+## 
+## Loss at epoch 4: training: 4.416221
+## 
+## Loss at epoch 5: training: 1.522098
+```
+]
+]
+.panel[.panel-name[학습결과]
+.left-column[
+
+]
+.right-column[
+
+```
+## 
+## Loss at epoch 1: training: 0.664985
+## 
+## Loss at epoch 2: training: 0.045079
+## 
+## Loss at epoch 3: training: 0.042830
+## 
+## Loss at epoch 4: training: 0.022387
+## 
+## Loss at epoch 5: training: 0.016322
+```
+
+]
+]
+]
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "googlecode",
+"highlightLines": true,
+"highlightLanguage": "r",
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+<!--Hat-tip: https://www.garrickadenbuie.com/blog/xaringan-tip-logo-all-slides/-->
+<style>
+.logo {
+  background-image: url(img/logo-blue.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  width: 110px;
+  height: 128px;
+  z-index: 0;
+}
+</style>
+
+<script>
+document
+  .querySelectorAll(
+    '.remark-slide-content' +
+    ':not(.title-slide)' +
+    // add additional classes to exclude here, e.g.
+    ':not(.inverse)' +
+    ':not(.hide-logo)'
+  )
+  .forEach(el => {
+    el.innerHTML += '<div class="logo"></div>';
+  });
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

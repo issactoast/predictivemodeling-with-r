@@ -16,3 +16,15 @@
 
 -   Lecture 6: [Tree based
     models](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec6.html)
+
+-   Lecture 7: [Boosted
+    Tree](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec7.html)
+
+-   Lecture 8:
+    [GLM](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec8.html)
+
+-   Lecture 9: [Deep learning in
+    R](https://issactoast.github.io/predictivemodeling-with-r/lecture/lec9.html)
+
+-   Lecture 10: [Deep learning in
+    R](https://issactoast.github.io/predictivemodeling-with-r/lecture/deeplearning-intro/deeplearning-intro.html)
